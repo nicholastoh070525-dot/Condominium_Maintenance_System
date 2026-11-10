@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Condominium_Maintenance_System"
+rootProject.name = "CondoTrack"
 include(":app")
