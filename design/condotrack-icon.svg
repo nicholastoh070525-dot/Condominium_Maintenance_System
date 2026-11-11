@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">CondoTrack app icon</title>
+  <desc id="desc">A white condominium building inside a light blue tracking arc on a deep blue rounded square.</desc>
+  <defs>
+    <linearGradient id="background" x1="52" y1="34" x2="468" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#315CC7"/>
+      <stop offset="0.72" stop-color="#152A55"/>
+      <stop offset="1" stop-color="#0E1B34"/>
+    </linearGradient>
+    <linearGradient id="building" x1="178" y1="174" x2="346" y2="378" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DCE7FF"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="118" fill="url(#background)"/>
+  <circle cx="424" cy="76" r="126" fill="#FFFFFF" opacity="0.045"/>
+  <circle cx="76" cy="448" r="116" fill="#4C7CF3" opacity="0.14"/>
+  <path d="M116 298C92 194 158 108 252 86C327 68 399 104 432 174" fill="none" stroke="#9DB8FF" stroke-width="25" stroke-linecap="round"/>
+  <rect x="168" y="236" width="72" height="154" rx="12" fill="url(#building)"/>
+  <rect x="232" y="164" width="96" height="226" rx="16" fill="url(#building)"/>
+  <rect x="334" y="214" width="64" height="176" rx="12" fill="url(#building)"/>
+  <path d="M258 264L280 287L318 236" fill="none" stroke="#315CC7" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="187" y="258" width="20" height="20" rx="4" fill="#315CC7" opacity="0.9"/>
+  <rect x="187" y="298" width="20" height="20" rx="4" fill="#315CC7" opacity="0.9"/>
+  <rect x="352" y="240" width="18" height="18" rx="4" fill="#315CC7" opacity="0.9"/>
+  <rect x="352" y="278" width="18" height="18" rx="4" fill="#315CC7" opacity="0.9"/>
+  <rect x="352" y="316" width="18" height="18" rx="4" fill="#315CC7" opacity="0.9"/>
+  <circle cx="432" cy="174" r="25" fill="#E77A65"/>
+  <circle cx="432" cy="174" r="10" fill="#FFFFFF"/>
+</svg>
