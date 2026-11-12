@@ -91,10 +91,13 @@ fun CondoTrackApp(
     }
     val bookings = remember {
         mutableStateListOf(
-            FacilityBooking("Function room", "Unit 12-08", "Thu, 6 Nov · 2:00–5:00 PM", "Pending"),
-            FacilityBooking("Sports court", "Unit 08-03", "Fri, 7 Nov · 7:00–9:00 PM", "Approved")
+            FacilityBooking("Function room", "Unit 12-08", 14, "3:00 PM – 6:00 PM", "Pending"),
+            FacilityBooking("Swimming pool", "Unit 05-02", 14, "9:00 AM – 12:00 PM", "Approved"),
+            FacilityBooking("Sports court", "Unit 08-03", 15, "6:00 PM – 9:00 PM", "Approved"),
+            FacilityBooking("BBQ pit", "Unit 12-08", 21, "6:00 PM – 9:00 PM", "Approved")
         )
     }
+
     val lostItems = remember {
         mutableStateListOf(
             LostFoundItem("Set of keys with blue tag", "Found at Level 2 lobby · Today, 8:10 AM", "Unclaimed", "Found"),
@@ -212,9 +215,17 @@ fun CondoTrackApp(
                     role = signedInRole,
                     bookings = bookings,
                     onBack = goHome,
-                    onAddBooking = {
-                        bookings.add(0, it)
-                        message("Facility booking request submitted.")
+                    onAddBooking = { new ->
+                        val taken = bookings.any {
+                            it.facility == new.facility && it.date == new.date &&
+                                    it.slot == new.slot && it.occupiesSlot()
+                        }
+                        if (taken) {
+                            message("That time slot is already booked.")
+                        } else {
+                            bookings.add(0, new)
+                            message("Facility booking request submitted.")
+                        }
                     },
                     onBookingAction = { target, status ->
                         val index = bookings.indexOf(target)

@@ -49,9 +49,21 @@ data class WorkOrder(
 data class FacilityBooking(
     val facility: String,
     val unit: String,
-    val time: String,
+    val date: Int,
+    val slot: String,
     val status: String
-)
+) {
+    val time: String
+        get() = "${dayLabel(date)} · $slot"
+}
+
+fun dayLabel(day: Int): String {
+    val names = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    return "${names[(day - 1) % 7]}, $day Nov"
+}
+
+fun FacilityBooking.occupiesSlot(): Boolean =
+    status == "Pending" || status == "Approved"
 
 data class LostFoundItem(
     val title: String,
