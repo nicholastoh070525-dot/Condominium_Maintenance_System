@@ -129,11 +129,16 @@ Recommended SMTP settings:
 
 ```text
 Host: smtp.resend.com
-Port: 465
+Port: 587
 Username: resend
 Password: YOUR_RESEND_API_KEY
 Sender: CondoTrack <noreply@your-verified-domain.com>
 ```
+
+`onboarding@resend.dev` is only a testing sender. Resend normally permits it to
+send only to the Resend account owner's email address. To let any resident
+register, add and verify your own domain under **Resend → Domains**, then use an
+address on that verified domain as the Supabase SMTP sender.
 
 Replace the email templates using the files in `email-templates/`.
 

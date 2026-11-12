@@ -45,13 +45,18 @@ class VisitorViewModel(
         }
     }
 
-    fun add(profile: UserProfile, visitor: VisitorRequest) {
+    fun add(
+        profile: UserProfile,
+        visitor: VisitorRequest,
+        onSubmitted: () -> Unit = {}
+    ) {
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             runCatching { repository.createRequest(profile, visitor) }
                 .onSuccess {
                     _state.update { it.copy(loading = false, message = "Visitor request submitted.") }
                     load(UserRole.RESIDENT, profile.id)
+                    onSubmitted()
                 }
                 .onFailure { error ->
                     _state.update {

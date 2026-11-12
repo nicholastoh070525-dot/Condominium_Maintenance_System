@@ -39,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.screens.account.AccountScreen
+import com.example.condominium_maintenance_system.ui.screens.account.AddVisitorScreen
 import com.example.condominium_maintenance_system.ui.screens.announcements.AnnouncementsScreen
 import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
@@ -189,7 +190,7 @@ private fun AuthenticatedCondoTrack(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (destination != AppDestination.NEW_REQUEST) {
+            if (destination != AppDestination.NEW_REQUEST && destination != AppDestination.ADD_VISITOR) {
                 CondoBottomNavigation(
                     role = role,
                     current = destination,
@@ -245,7 +246,7 @@ private fun AuthenticatedCondoTrack(
                     onUploadAvatar = { uri, resolver ->
                         profileViewModel.uploadAvatar(currentProfile.id, uri, resolver)
                     },
-                    onAddVisitor = { visitorViewModel.add(currentProfile, it) },
+                    onOpenVisitorForm = { navigate(AppDestination.ADD_VISITOR) },
                     onReviewVisitor = { visitor, status ->
                         visitorViewModel.review(visitor, status, role, currentProfile.id)
                     },
@@ -322,6 +323,16 @@ private fun AuthenticatedCondoTrack(
                     onSubmit = {
                         requests.add(0, it)
                         navigate(AppDestination.MAINTENANCE)
+                    }
+                )
+
+                AppDestination.ADD_VISITOR -> AddVisitorScreen(
+                    submitting = visitorState.loading,
+                    onBack = { navigate(AppDestination.ACCESS) },
+                    onSubmit = {
+                        visitorViewModel.add(currentProfile, it) {
+                            navigate(AppDestination.ACCESS)
+                        }
                     }
                 )
             }

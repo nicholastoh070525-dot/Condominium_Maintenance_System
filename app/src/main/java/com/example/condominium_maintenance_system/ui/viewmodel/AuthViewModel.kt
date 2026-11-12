@@ -235,5 +235,26 @@ class AuthViewModel(
     }
 }
 
-internal fun Throwable.userMessage(fallback: String): String =
-    message?.takeIf { it.isNotBlank() } ?: fallback
+internal fun Throwable.userMessage(fallback: String): String {
+    val raw = message?.takeIf { it.isNotBlank() } ?: return fallback
+    val normalized = raw.lowercase()
+    return when {
+        "error sending confirmation email" in normalized ||
+            "unexpected_failure" in normalized ->
+            "Verification email could not be sent. Check the Supabase SMTP sender and use a verified Resend sending domain."
+
+        "invalid login credentials" in normalized ->
+            "Email or password is incorrect."
+
+        "email not confirmed" in normalized ->
+            "Verify your email code before signing in."
+
+        "user already registered" in normalized ->
+            "An account with this email already exists. Sign in or reset your password."
+
+        "rate limit" in normalized || "too many requests" in normalized ->
+            "Too many email requests. Wait one minute and try again."
+
+        else -> raw.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { fallback }
+    }
+}

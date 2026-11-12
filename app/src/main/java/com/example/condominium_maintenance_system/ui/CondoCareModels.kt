@@ -20,7 +20,8 @@ enum class AppDestination {
     LOST_FOUND,
     ANNOUNCEMENTS,
     BILLING,
-    NEW_REQUEST
+    NEW_REQUEST,
+    ADD_VISITOR
 }
 
 data class NavItem(

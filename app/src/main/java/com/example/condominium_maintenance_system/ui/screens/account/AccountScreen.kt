@@ -31,7 +31,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -68,10 +67,8 @@ import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.components.InfoBanner
 import com.example.condominium_maintenance_system.ui.components.MetricCard
 import com.example.condominium_maintenance_system.ui.components.PillTone
-import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.components.SectionTitle
 import com.example.condominium_maintenance_system.ui.components.StatusPill
-import com.example.condominium_maintenance_system.ui.screens.common.FormDialog
 import com.example.condominium_maintenance_system.ui.screens.common.ScreenHeader
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 import com.example.condominium_maintenance_system.ui.theme.BluePale
@@ -106,13 +103,12 @@ fun AccountScreen(
     onBack: () -> Unit,
     onSaveProfile: (String, String, String, String, String?) -> Unit,
     onUploadAvatar: (Uri, ContentResolver) -> Unit,
-    onAddVisitor: (VisitorRequest) -> Unit,
+    onOpenVisitorForm: () -> Unit,
     onReviewVisitor: (VisitorRequest, String) -> Unit,
     onOpenPass: (VisitorRequest) -> Unit,
     onClosePass: () -> Unit,
     onSignOut: () -> Unit
 ) {
-    var showVisitorDialog by remember { mutableStateOf(false) }
     var showProfileEditor by remember { mutableStateOf(false) }
     var visitorAction by remember { mutableStateOf<Pair<VisitorRequest, String>?>(null) }
 
@@ -123,7 +119,7 @@ fun AccountScreen(
             onBack = onBack,
             trailing = if (role == UserRole.MANAGEMENT) GlyphType.PEOPLE else GlyphType.ADD,
             onTrailing = {
-                if (role == UserRole.RESIDENT) showVisitorDialog = true
+                if (role == UserRole.RESIDENT) onOpenVisitorForm()
             }
         )
 
@@ -166,7 +162,7 @@ fun AccountScreen(
 
             if (role == UserRole.RESIDENT) {
                 item {
-                    SectionTitle("Visitor access", action = "Add visitor") { showVisitorDialog = true }
+                    SectionTitle("Visitor access", action = "Add visitor", onAction = onOpenVisitorForm)
                 }
                 if (visitors.isEmpty() && !loading) {
                     item {
@@ -260,16 +256,6 @@ fun AccountScreen(
                 }
             }
         }
-    }
-
-    if (showVisitorDialog && profile != null) {
-        AddVisitorDialog(
-            onDismiss = { showVisitorDialog = false },
-            onSubmit = {
-                onAddVisitor(it)
-                showVisitorDialog = false
-            }
-        )
     }
 
     if (showProfileEditor && profile != null) {
@@ -701,87 +687,6 @@ private fun ProfileAvatar(profile: UserProfile?, size: Dp) {
         }
     }
 }
-
-@Composable
-private fun AddVisitorDialog(
-    onDismiss: () -> Unit,
-    onSubmit: (VisitorRequest) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var vehicleColor by remember { mutableStateOf("") }
-    var plate by remember { mutableStateOf("") }
-    var visitTime by remember { mutableStateOf("") }
-
-    FormDialog(title = "Add visitor", onDismiss = onDismiss) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Visitor name", color = MaterialTheme.colorScheme.onSurface) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = visitorFieldColors()
-        )
-        Spacer(Modifier.height(9.dp))
-        OutlinedTextField(
-            value = vehicleColor,
-            onValueChange = { vehicleColor = it },
-            label = { Text("Vehicle color", color = MaterialTheme.colorScheme.onSurface) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = visitorFieldColors()
-        )
-        Spacer(Modifier.height(9.dp))
-        OutlinedTextField(
-            value = plate,
-            onValueChange = { plate = it.uppercase() },
-            label = { Text("Number plate", color = MaterialTheme.colorScheme.onSurface) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = visitorFieldColors()
-        )
-        Spacer(Modifier.height(9.dp))
-        OutlinedTextField(
-            value = visitTime,
-            onValueChange = { visitTime = it },
-            label = { Text("Visit date and time", color = MaterialTheme.colorScheme.onSurface) },
-            placeholder = { Text("Example: 15/11/2026 6:00 PM") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = visitorFieldColors()
-        )
-        Spacer(Modifier.height(16.dp))
-        PrimaryActionButton(
-            text = "Send for approval",
-            enabled = name.isNotBlank() && vehicleColor.isNotBlank() &&
-                plate.isNotBlank() && visitTime.isNotBlank()
-        ) {
-            onSubmit(
-                VisitorRequest(
-                    name = name,
-                    plate = plate,
-                    visitTime = visitTime,
-                    bay = "",
-                    status = "PENDING",
-                    vehicleColor = vehicleColor,
-                    note = ""
-                )
-            )
-        }
-    }
-}
-
-@Composable
-private fun visitorFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedLabelColor = MaterialTheme.colorScheme.primary,
-    unfocusedLabelColor = MaterialTheme.colorScheme.onSurface,
-    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-    cursorColor = MaterialTheme.colorScheme.primary
-)
 
 @Composable
 private fun VisitorDecisionDialog(
