@@ -7,16 +7,22 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.condominium_maintenance_system.ui.AppDestination
 import com.example.condominium_maintenance_system.ui.CondoTrackApp
 import com.example.condominium_maintenance_system.ui.MaintenanceFee
+import com.example.condominium_maintenance_system.ui.PaymentRecord
+import com.example.condominium_maintenance_system.ui.UserProfile
 import com.example.condominium_maintenance_system.ui.UserRole
+import com.example.condominium_maintenance_system.ui.VisitorRequest
+import com.example.condominium_maintenance_system.ui.screens.account.AccountScreen
+import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
 import com.example.condominium_maintenance_system.ui.theme.Condominium_Maintenance_SystemTheme
+import com.example.condominium_maintenance_system.ui.viewmodel.AuthUiState
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,70 +36,170 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@Preview(showBackground = true)
-@androidx.compose.runtime.Composable
-fun CondoTrackPreview() {
-    Condominium_Maintenance_SystemTheme {
-        CondoTrackApp()
-    }
-}
-
-@Preview(name = "Resident dashboard", showBackground = true, widthDp = 390, heightDp = 844)
-@androidx.compose.runtime.Composable
-fun ResidentDashboardPreview() {
+@Preview(name = "Authentication", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun AuthPreview() {
     Condominium_Maintenance_SystemTheme(darkTheme = false) {
-        CondoTrackApp(initialRole = UserRole.RESIDENT)
-    }
-}
-
-@Preview(name = "Management dashboard", showBackground = true, widthDp = 390, heightDp = 844)
-@androidx.compose.runtime.Composable
-fun ManagementDashboardPreview() {
-    Condominium_Maintenance_SystemTheme(darkTheme = false) {
-        CondoTrackApp(initialRole = UserRole.MANAGEMENT)
-    }
-}
-
-@Preview(name = "Maintenance fee payment", showBackground = true, widthDp = 390, heightDp = 844)
-@androidx.compose.runtime.Composable
-fun BillingPreview() {
-    Condominium_Maintenance_SystemTheme(darkTheme = false) {
-        CondoTrackApp(
-            initialRole = UserRole.RESIDENT,
-            initialDestination = AppDestination.BILLING
+        AuthScreen(
+            state = AuthUiState(loading = false),
+            onSignIn = { _, _ -> },
+            onRegister = {},
+            onVerifyRegistration = {},
+            onResendRegistration = {},
+            onRequestPasswordReset = {},
+            onVerifyRecovery = {},
+            onResendRecovery = {},
+            onResetPassword = {},
+            onCancelFlow = {},
+            onClearFeedback = {}
         )
     }
 }
 
-@Preview(name = "Resident home direct", showBackground = true, widthDp = 390, heightDp = 844)
-@androidx.compose.runtime.Composable
-fun ResidentHomeDirectPreview() {
+@Preview(name = "Resident dashboard", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun ResidentDashboardPreview() {
     Condominium_Maintenance_SystemTheme(darkTheme = false) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            HomeScreen(
-                role = UserRole.RESIDENT,
-                onNavigate = {},
-                onOpenNotifications = {}
+            HomeScreen(UserRole.RESIDENT, {}, {})
+        }
+    }
+}
+
+@Preview(name = "Management dashboard", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun ManagementDashboardPreview() {
+    Condominium_Maintenance_SystemTheme(darkTheme = false) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            HomeScreen(UserRole.MANAGEMENT, {}, {})
+        }
+    }
+}
+
+@Preview(name = "Maintenance fee payment", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun BillingPreview() {
+    Condominium_Maintenance_SystemTheme(darkTheme = false) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            BillingScreen(
+                bills = listOf(
+                    MaintenanceFee(
+                        id = "preview",
+                        month = "November 2026",
+                        amount = "RM 285.00",
+                        dueDate = "15 Nov 2026",
+                        status = "UNPAID"
+                    )
+                ),
+                payments = listOf(
+                    PaymentRecord(
+                        id = "preview-payment",
+                        amount = "RM 285.00",
+                        method = "DuitNow",
+                        paidAt = "2026-10-12T10:30:00",
+                        receiptNumber = "CT-20261012-001"
+                    )
+                ),
+                loading = false,
+                paying = false,
+                onBack = {},
+                onPay = { _, _ -> }
             )
         }
     }
 }
 
-@Preview(name = "Billing direct", showBackground = true, widthDp = 390, heightDp = 844)
-@androidx.compose.runtime.Composable
-fun BillingDirectPreview() {
+@Preview(name = "Resident profile", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun ResidentProfilePreview() {
     Condominium_Maintenance_SystemTheme(darkTheme = false) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            BillingScreen(
-                fee = MaintenanceFee(
-                    month = "November 2026",
-                    amount = "RM 285.00",
-                    dueDate = "15 Nov 2026"
+            AccountScreen(
+                role = UserRole.RESIDENT,
+                profile = previewResident(),
+                profiles = emptyList(),
+                visitors = listOf(
+                    VisitorRequest(
+                        name = "Daniel Tan",
+                        plate = "WXY 8821",
+                        visitTime = "2026-11-15T18:00:00+08:00",
+                        bay = "",
+                        status = "APPROVED",
+                        vehicleColor = "Silver",
+                        unitCode = "A-15-12",
+                        residentName = "Aina Mahmud",
+                        approvedAt = "2026-11-12T15:30:00+08:00",
+                        passReference = "CT-20261112-A1B2C3"
+                    )
                 ),
-                feePaid = false,
+                loading = false,
+                processingId = null,
+                activePass = null,
                 onBack = {},
-                onPay = {}
+                onSaveProfile = { _, _, _, _, _ -> },
+                onUploadAvatar = { _, _ -> },
+                onAddVisitor = {},
+                onReviewVisitor = { _, _ -> },
+                onOpenPass = {},
+                onClosePass = {},
+                onSignOut = {}
             )
         }
     }
 }
+
+@Preview(name = "Management access", showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+fun ManagementAccessPreview() {
+    Condominium_Maintenance_SystemTheme(darkTheme = false) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            AccountScreen(
+                role = UserRole.MANAGEMENT,
+                profile = UserProfile(
+                    id = "manager",
+                    fullName = "Nadia Safiya",
+                    email = "management@condotrack.my",
+                    phone = "+60 12 777 0198",
+                    role = UserRole.MANAGEMENT,
+                    avatarKey = "NS"
+                ),
+                profiles = listOf(previewResident()),
+                visitors = listOf(
+                    VisitorRequest(
+                        id = "pending",
+                        name = "Mei Lin",
+                        plate = "VCT 2048",
+                        visitTime = "2026-11-15T10:00:00+08:00",
+                        bay = "",
+                        status = "PENDING",
+                        vehicleColor = "White",
+                        unitCode = "A-15-12",
+                        residentName = "Aina Mahmud"
+                    )
+                ),
+                loading = false,
+                processingId = null,
+                activePass = null,
+                onBack = {},
+                onSaveProfile = { _, _, _, _, _ -> },
+                onUploadAvatar = { _, _ -> },
+                onAddVisitor = {},
+                onReviewVisitor = { _, _ -> },
+                onOpenPass = {},
+                onClosePass = {},
+                onSignOut = {}
+            )
+        }
+    }
+}
+
+private fun previewResident() = UserProfile(
+    id = "resident",
+    fullName = "Aina Mahmud",
+    email = "aina.mahmud@gmail.com",
+    phone = "+60 12 555 0182",
+    role = UserRole.RESIDENT,
+    unitId = "unit-a1512",
+    unitCode = "A-15-12",
+    avatarKey = "AM"
+)

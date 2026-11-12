@@ -1,8 +1,15 @@
 package com.example.condominium_maintenance_system.ui
 
+import com.example.condominium_maintenance_system.data.model.UnitRules
+
 enum class UserRole(val displayName: String, val initials: String) {
     RESIDENT("Resident", "AM"),
-    MANAGEMENT("Management", "NS")
+    MANAGEMENT("Management", "NS");
+
+    companion object {
+        fun fromDatabase(value: String): UserRole =
+            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: RESIDENT
+    }
 }
 
 enum class AppDestination {
@@ -26,7 +33,15 @@ data class VisitorRequest(
     val plate: String,
     val visitTime: String,
     val bay: String,
-    val status: String
+    val status: String,
+    val id: String = "",
+    val vehicleColor: String = "Silver",
+    val note: String = "",
+    val unitCode: String = "",
+    val residentName: String = "",
+    val approvedAt: String? = null,
+    val completedAt: String? = null,
+    val passReference: String? = null
 )
 
 data class MaintenanceRequest(
@@ -81,8 +96,56 @@ data class CommunityNotice(
 )
 
 data class MaintenanceFee(
+    val id: String = "",
     val month: String,
     val amount: String,
     val dueDate: String,
-    val paidDate: String? = null
+    val paidDate: String? = null,
+    val status: String = if (paidDate == null) "UNPAID" else "PAID"
+)
+
+data class UserProfile(
+    val id: String,
+    val fullName: String,
+    val email: String,
+    val phone: String,
+    val role: UserRole,
+    val unitId: String? = null,
+    val unitCode: String? = null,
+    val avatarKey: String = "AM",
+    val avatarUrl: String? = null
+)
+
+data class PaymentRecord(
+    val id: String,
+    val amount: String,
+    val method: String,
+    val paidAt: String,
+    val receiptNumber: String
+)
+
+data class RegistrationDraft(
+    val fullName: String,
+    val email: String,
+    val phone: String,
+    val password: String,
+    val role: UserRole,
+    val block: String? = null,
+    val floor: Int? = null,
+    val room: Int? = null
+) {
+    val unitCode: String?
+        get() = if (block != null && floor != null && room != null) {
+            if (UnitRules.isValid(block, floor, room)) UnitRules.code(block, floor, room) else null
+        } else {
+            null
+        }
+}
+
+data class UnitAvailability(
+    val id: String,
+    val block: String,
+    val floor: Int,
+    val room: Int,
+    val unitCode: String
 )

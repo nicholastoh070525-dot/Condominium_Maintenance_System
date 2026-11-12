@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -20,6 +20,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -33,12 +35,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.condominium_maintenance_system.ui.*
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.screens.account.AccountScreen
 import com.example.condominium_maintenance_system.ui.screens.announcements.AnnouncementsScreen
-import com.example.condominium_maintenance_system.ui.screens.auth.LoginScreen
+import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
 import com.example.condominium_maintenance_system.ui.screens.booking.BookingScreen
 import com.example.condominium_maintenance_system.ui.screens.community.CommunityScreen
@@ -47,23 +49,65 @@ import com.example.condominium_maintenance_system.ui.screens.requests.NewRequest
 import com.example.condominium_maintenance_system.ui.screens.requests.RequestsScreen
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 import com.example.condominium_maintenance_system.ui.theme.Canvas
+import com.example.condominium_maintenance_system.ui.viewmodel.AuthViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.BillingViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.ProfileViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.VisitorViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun CondoTrackApp(
-    initialRole: UserRole? = null,
-    initialDestination: AppDestination = AppDestination.HOME
-) {
-    var role by remember(initialRole) { mutableStateOf(initialRole) }
-    var destination by remember(initialDestination) { mutableStateOf(initialDestination) }
-    var feePaid by remember { mutableStateOf(false) }
+fun CondoTrackApp() {
+    val authViewModel: AuthViewModel = viewModel()
+    val authState by authViewModel.state.collectAsState()
 
-    val visitors = remember {
-        mutableStateListOf(
-            VisitorRequest("Daniel Tan", "WXY 8821", "Today, 6:00 PM", "Bay B-14", "Approved"),
-            VisitorRequest("Mei Lin", "VCT 2048", "Saturday, 10:00 AM", "Awaiting bay", "Pending")
+    when {
+        authState.loading -> LoadingScreen()
+        authState.profile == null -> AuthScreen(
+            state = authState,
+            onSignIn = authViewModel::signIn,
+            onRegister = authViewModel::beginRegistration,
+            onVerifyRegistration = authViewModel::verifyRegistration,
+            onResendRegistration = authViewModel::resendRegistrationCode,
+            onRequestPasswordReset = authViewModel::requestPasswordReset,
+            onVerifyRecovery = authViewModel::verifyRecoveryCode,
+            onResendRecovery = authViewModel::resendRecoveryCode,
+            onResetPassword = authViewModel::setNewPassword,
+            onCancelFlow = authViewModel::cancelPendingFlow,
+            onClearFeedback = authViewModel::clearFeedback
         )
+
+        else -> {
+            val profile = authState.profile ?: return
+            AuthenticatedCondoTrack(
+                signedInProfile = profile,
+                onSignedOut = authViewModel::signOut
+            )
+        }
     }
+}
+
+@Composable
+private fun AuthenticatedCondoTrack(
+    signedInProfile: UserProfile,
+    onSignedOut: () -> Unit
+) {
+    val profileViewModel: ProfileViewModel = viewModel()
+    val visitorViewModel: VisitorViewModel = viewModel()
+    val billingViewModel: BillingViewModel = viewModel()
+
+    val profileState by profileViewModel.state.collectAsState()
+    val visitorState by visitorViewModel.state.collectAsState()
+    val billingState by billingViewModel.state.collectAsState()
+    val currentProfile = profileState.profile ?: signedInProfile
+    val role = currentProfile.role
+
+    var destination by remember { mutableStateOf(AppDestination.HOME) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val showMessage: (String) -> Unit = { message ->
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+
     val requests = remember {
         mutableStateListOf(
             MaintenanceRequest(
@@ -89,72 +133,65 @@ fun CondoTrackApp(
             WorkOrder("WO-3007", "Air-con service", "Unit 15-11", "Jason C.", "Friday", "Assigned")
         )
     }
-    val bookings = remember {
+    val facilityBookings = remember {
         mutableStateListOf(
-            FacilityBooking("Function room", "Unit 12-08", 14, "3:00 PM – 6:00 PM", "Pending"),
-            FacilityBooking("Swimming pool", "Unit 05-02", 14, "9:00 AM – 12:00 PM", "Approved"),
-            FacilityBooking("Sports court", "Unit 08-03", 15, "6:00 PM – 9:00 PM", "Approved"),
-            FacilityBooking("BBQ pit", "Unit 12-08", 21, "6:00 PM – 9:00 PM", "Approved")
+            FacilityBooking("Function room", currentProfile.unitCode ?: "Unit", 14, "3:00 PM – 6:00 PM", "Pending"),
+            FacilityBooking("Sports court", currentProfile.unitCode ?: "Unit", 15, "6:00 PM – 9:00 PM", "Approved")
         )
     }
-
     val lostItems = remember {
         mutableStateListOf(
-            LostFoundItem("Set of keys with blue tag", "Found at Level 2 lobby · Today, 8:10 AM", "Unclaimed", "Found"),
-            LostFoundItem("Black compact umbrella", "Found at Tower B lift lobby · Yesterday", "Unclaimed", "Found"),
-            LostFoundItem("Brown wallet", "Returned to owner · 4 Nov 2026", "Returned", "Found")
+            LostFoundItem("Set of keys with blue tag", "Found at Level 2 lobby · Today", "Unclaimed", "Found"),
+            LostFoundItem("Black compact umbrella", "Found at Tower B lift lobby · Yesterday", "Unclaimed", "Found")
         )
     }
     val notices = remember {
         mutableStateListOf(
             CommunityNotice(
                 title = "Water supply interruption on 8 November",
-                body = "Water will be unavailable from 10:00 AM to 2:00 PM while the main valve is replaced.",
+                body = "Water will be unavailable from 10:00 AM to 2:00 PM.",
                 time = "Pinned",
                 pinned = true
             ),
             CommunityNotice(
-                title = "Your kitchen leak is now in progress",
-                body = "Rafiq is expected to arrive between 2:30 and 3:00 PM. Please make sure someone is home.",
-                time = "Today · 9:12 AM"
-            ),
-            CommunityNotice(
                 title = "Fire alarm inspection this Friday",
-                body = "The safety check will take about 15 minutes per unit. Access is required.",
-                time = "4 Nov · Community"
+                body = "Access to each unit is required for about 15 minutes.",
+                time = "Community"
             )
         )
     }
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    val message: (String) -> Unit = { text ->
-        scope.launch { snackbarHostState.showSnackbar(text) }
+    LaunchedEffect(currentProfile.id, role) {
+        profileViewModel.load(currentProfile.id, role)
+        visitorViewModel.load(role, currentProfile.id)
+        if (role == UserRole.RESIDENT && currentProfile.unitId != null) {
+            billingViewModel.load(currentProfile.unitId)
+        }
     }
 
-    val signedInRole = role
-    if (signedInRole == null) {
-        LoginScreen { selectedRole ->
-            role = selectedRole
-            destination = AppDestination.HOME
-        }
-        return
+    LaunchedEffect(profileState.message, profileState.error) {
+        (profileState.error ?: profileState.message)?.let { showMessage(it) }
+    }
+    LaunchedEffect(visitorState.message, visitorState.error) {
+        (visitorState.error ?: visitorState.message)?.let { showMessage(it) }
+    }
+    LaunchedEffect(billingState.message, billingState.error) {
+        (billingState.error ?: billingState.message)?.let { showMessage(it) }
     }
 
     fun navigate(next: AppDestination) {
-        if (next == AppDestination.BILLING && signedInRole != UserRole.RESIDENT) return
+        if (next == AppDestination.BILLING && role != UserRole.RESIDENT) return
         destination = next
     }
 
-    val showNavigation = destination != AppDestination.NEW_REQUEST
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (showNavigation) {
+            if (destination != AppDestination.NEW_REQUEST) {
                 CondoBottomNavigation(
-                    role = signedInRole,
+                    role = role,
                     current = destination,
                     onNavigate = ::navigate
                 )
@@ -178,109 +215,103 @@ fun CondoTrackApp(
             val goHome = { destination = AppDestination.HOME }
             when (destination) {
                 AppDestination.HOME -> HomeScreen(
-                    role = signedInRole,
+                    role = role,
                     onNavigate = ::navigate,
                     onOpenNotifications = {
-                        if (signedInRole == UserRole.RESIDENT) navigate(AppDestination.ANNOUNCEMENTS)
-                        else message("No urgent management notifications right now.")
+                        if (role == UserRole.RESIDENT) navigate(AppDestination.ANNOUNCEMENTS)
+                        else showMessage("No urgent management notifications right now.")
                     }
                 )
 
                 AppDestination.ACCESS -> AccountScreen(
-                    role = signedInRole,
-                    visitors = visitors,
+                    role = role,
+                    profile = currentProfile,
+                    profiles = profileState.profiles,
+                    visitors = visitorState.requests,
+                    loading = profileState.loading || visitorState.loading,
+                    processingId = visitorState.processingId,
+                    activePass = visitorState.activePass,
                     onBack = goHome,
-                    onAddVisitor = {
-                        visitors.add(0, it)
-                        message("Visitor parking request submitted.")
+                    onSaveProfile = { name, phone, email, avatarKey, avatarUrl ->
+                        profileViewModel.save(
+                            userId = currentProfile.id,
+                            fullName = name,
+                            phone = phone,
+                            email = email,
+                            avatarKey = avatarKey,
+                            avatarUrl = avatarUrl
+                        )
                     },
-                    onVisitorAction = { target, status ->
-                        val index = visitors.indexOf(target)
-                        if (index >= 0) visitors[index] = target.copy(status = status)
-                        message("Visitor request $status.")
+                    onUploadAvatar = { uri, resolver ->
+                        profileViewModel.uploadAvatar(currentProfile.id, uri, resolver)
                     },
-                    onMessage = message
+                    onAddVisitor = { visitorViewModel.add(currentProfile, it) },
+                    onReviewVisitor = { visitor, status ->
+                        visitorViewModel.review(visitor, status, role, currentProfile.id)
+                    },
+                    onOpenPass = { visitor -> visitorViewModel.openPass(visitor, currentProfile.id) },
+                    onClosePass = visitorViewModel::closePass,
+                    onSignOut = onSignedOut
                 )
 
                 AppDestination.MAINTENANCE -> RequestsScreen(
-                    role = signedInRole,
+                    role = role,
                     requests = requests,
                     workOrders = workOrders,
                     onBack = goHome,
                     onNewRequest = { navigate(AppDestination.NEW_REQUEST) },
-                    onAction = message
+                    onAction = showMessage
                 )
 
                 AppDestination.BOOKINGS -> BookingScreen(
-                    role = signedInRole,
-                    bookings = bookings,
+                    role = role,
+                    bookings = facilityBookings,
                     onBack = goHome,
-                    onAddBooking = { new ->
-                        val taken = bookings.any {
-                            it.facility == new.facility && it.date == new.date &&
-                                    it.slot == new.slot && it.occupiesSlot()
-                        }
-                        if (taken) {
-                            message("That time slot is already booked.")
-                        } else {
-                            bookings.add(0, new)
-                            message("Facility booking request submitted.")
-                        }
-                    },
+                    onAddBooking = { facilityBookings.add(0, it) },
                     onBookingAction = { target, status ->
-                        val index = bookings.indexOf(target)
-                        if (index >= 0) bookings[index] = target.copy(status = status)
-                        message("Booking $status.")
+                        val index = facilityBookings.indexOf(target)
+                        if (index >= 0) facilityBookings[index] = target.copy(status = status)
                     },
-                    onAction = message
+                    onAction = showMessage
                 )
 
                 AppDestination.LOST_FOUND -> CommunityScreen(
-                    role = signedInRole,
+                    role = role,
                     items = lostItems,
                     onBack = goHome,
-                    onAddItem = {
-                        lostItems.add(0, it)
-                        message("Item posted to the community board.")
-                    },
+                    onAddItem = { lostItems.add(0, it) },
                     onItemAction = { target, status ->
                         val index = lostItems.indexOf(target)
                         if (index >= 0) lostItems[index] = target.copy(status = status)
-                        message("Item marked as $status.")
                     },
-                    onAction = message
+                    onAction = showMessage
                 )
 
                 AppDestination.ANNOUNCEMENTS -> AnnouncementsScreen(
-                    role = signedInRole,
+                    role = role,
                     notices = notices,
                     onBack = goHome,
-                    onAddNotice = {
-                        notices.add(0, it)
-                        message("Announcement published.")
-                    },
+                    onAddNotice = { notices.add(0, it) },
                     onMarkRead = {
                         notices.indices.forEach { index ->
                             notices[index] = notices[index].copy(read = true)
                         }
-                        message("All notifications marked as read.")
                     },
-                    onAction = message
+                    onAction = showMessage
                 )
 
                 AppDestination.BILLING -> {
-                    if (signedInRole == UserRole.RESIDENT) {
+                    if (role == UserRole.RESIDENT) {
                         BillingScreen(
-                            fee = MaintenanceFee(
-                                month = "November 2026",
-                                amount = "RM 285.00",
-                                dueDate = "15 Nov 2026"
-                            ),
-                            feePaid = feePaid,
+                            bills = billingState.bills,
+                            payments = billingState.payments,
+                            loading = billingState.loading,
+                            paying = billingState.paying,
                             onBack = goHome,
-                            onPay = { method ->
-                                feePaid = true
-                                message("$method payment completed. Receipt saved.")
+                            onPay = { bill, method ->
+                                currentProfile.unitId?.let { unitId ->
+                                    billingViewModel.pay(bill, unitId, method)
+                                }
                             }
                         )
                     }
@@ -291,10 +322,32 @@ fun CondoTrackApp(
                     onSubmit = {
                         requests.add(0, it)
                         navigate(AppDestination.MAINTENANCE)
-                        message("Maintenance request submitted.")
                     }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LoadingScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(MaterialTheme.colorScheme.primaryContainer, Canvas)
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = BlueDeep)
+            Text(
+                "Restoring your CondoTrack session…",
+                modifier = Modifier.padding(top = 14.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
         }
     }
 }
