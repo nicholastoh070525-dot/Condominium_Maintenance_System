@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.condominium_maintenance_system.data.remote.SupabaseProvider
 import com.example.condominium_maintenance_system.data.repository.AuthRepository
 import com.example.condominium_maintenance_system.data.repository.ProfileRepository
+import com.example.condominium_maintenance_system.ui.ProfileUpdateDraft
 import com.example.condominium_maintenance_system.ui.UserProfile
 import com.example.condominium_maintenance_system.ui.UserRole
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,11 +59,8 @@ class ProfileViewModel(
 
     fun save(
         userId: String,
-        fullName: String,
-        phone: String,
-        email: String,
-        avatarKey: String,
-        avatarUrl: String?
+        update: ProfileUpdateDraft,
+        onComplete: (Boolean) -> Unit = {}
     ) {
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null, message = null) }
@@ -70,17 +68,20 @@ class ProfileViewModel(
                 val current = _state.value.profile ?: error("Profile not loaded.")
                 var emailMessage: String? = null
                 if (current.role == UserRole.MANAGEMENT &&
-                    email.trim().lowercase() != current.email.lowercase()
+                    update.email.trim().lowercase() != current.email.lowercase()
                 ) {
-                    authRepository.requestEmailChange(email).getOrThrow()
+                    authRepository.requestEmailChange(update.email).getOrThrow()
                     emailMessage = "Check the new email address to confirm the change."
                 }
                 repository.updateProfile(
                     userId = userId,
-                    fullName = fullName,
-                    phone = phone,
-                    avatarKey = avatarKey,
-                    avatarUrl = avatarUrl
+                    fullName = update.fullName,
+                    phone = update.phone,
+                    avatarKey = update.avatarKey,
+                    avatarUrl = update.avatarUrl,
+                    unitBlock = update.block,
+                    unitFloor = update.floor,
+                    unitRoom = update.room
                 ) to emailMessage
             }.onSuccess { (profile, emailMessage) ->
                 _state.update {
@@ -90,10 +91,12 @@ class ProfileViewModel(
                         message = emailMessage ?: "Profile updated."
                     )
                 }
+                onComplete(true)
             }.onFailure { error ->
                 _state.update {
                     it.copy(saving = false, error = error.userMessage("Unable to update profile."))
                 }
+                onComplete(false)
             }
         }
     }
@@ -109,7 +112,8 @@ class ProfileViewModel(
                     fullName = profile.fullName,
                     phone = profile.phone,
                     avatarKey = profile.avatarKey,
-                    avatarUrl = url
+                    avatarUrl = url,
+                    enforcePhoneValidation = false
                 )
             }.onSuccess { profile ->
                 _state.update {

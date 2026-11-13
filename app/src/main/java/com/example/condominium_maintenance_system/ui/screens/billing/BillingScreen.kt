@@ -36,6 +36,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.condominium_maintenance_system.ui.MaintenanceFee
 import com.example.condominium_maintenance_system.ui.PaymentRecord
@@ -50,6 +51,11 @@ import com.example.condominium_maintenance_system.ui.screens.common.FormDialog
 import com.example.condominium_maintenance_system.ui.screens.common.ScreenHeader
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 
+private enum class BillingTab(val label: String) {
+    CURRENT_BILL("Current Bill"),
+    PAYMENT_HISTORY("Payment History")
+}
+
 @Composable
 fun BillingScreen(
     bills: List<MaintenanceFee>,
@@ -60,6 +66,7 @@ fun BillingScreen(
     onPay: (MaintenanceFee, String) -> Unit
 ) {
     var showPaymentDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(BillingTab.CURRENT_BILL) }
     val currentBill = bills.firstOrNull { it.status.equals("UNPAID", true) } ?: bills.firstOrNull()
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -80,103 +87,129 @@ fun BillingScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Maintenance fee payment", style = MaterialTheme.typography.headlineLarge)
+                Text(
+                    if (selectedTab == BillingTab.CURRENT_BILL) "Current bill" else "Payment history",
+                    style = MaterialTheme.typography.headlineLarge
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "Review your unit's monthly charge and pay securely.",
+                    if (selectedTab == BillingTab.CURRENT_BILL) {
+                        "Review your unit's maintenance fee and complete the payment."
+                    } else {
+                        "Review your completed maintenance-fee payments and receipts."
+                    },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            if (loading && currentBill == null) {
-                item {
-                    Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+            item {
+                BillingTabSelector(
+                    selected = selectedTab,
+                    onSelected = { selectedTab = it }
+                )
+            }
+
+            if (selectedTab == BillingTab.CURRENT_BILL) {
+                if (loading && currentBill == null) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
                     }
-                }
-            } else if (currentBill == null) {
-                item {
-                    EmptyStateCard(
-                        "No maintenance bill yet",
-                        "Your current bill will appear after it is prepared by the condominium office."
-                    )
-                }
-            } else {
-                val paid = currentBill.status.equals("PAID", true)
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(26.dp),
-                        color = Color.Transparent
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .background(
-                                    Brush.linearGradient(listOf(BlueDeep, MaterialTheme.colorScheme.primary)),
-                                    RoundedCornerShape(26.dp)
-                                )
-                                .padding(20.dp)
+                } else if (currentBill == null) {
+                    item {
+                        EmptyStateCard(
+                            "No maintenance bill yet",
+                            "Your current bill will appear after it is prepared by the condominium office."
+                        )
+                    }
+                } else {
+                    val paid = currentBill.status.equals("PAID", true)
+                    item {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(26.dp),
+                            color = Color.Transparent
                         ) {
-                            Text(
-                                if (paid) "PAID THIS MONTH" else "CURRENT MAINTENANCE FEE",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFFB9C9EE)
-                            )
-                            Spacer(Modifier.height(9.dp))
-                            Text(currentBill.amount, style = MaterialTheme.typography.displaySmall, color = Color.White)
-                            Spacer(Modifier.height(5.dp))
-                            Text(
-                                if (paid) "${currentBill.month} maintenance fee · Paid"
-                                else "${currentBill.month} maintenance fee · Due ${currentBill.dueDate}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFD8E2F6)
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Button(
-                                onClick = { if (!paid && !paying) showPaymentDialog = true },
-                                enabled = !paid && !paying,
-                                shape = RoundedCornerShape(13.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White,
-                                    contentColor = BlueDeep,
-                                    disabledContainerColor = Color(0xFFDCE6FA),
-                                    disabledContentColor = BlueDeep
-                                )
-                            ) {
-                                if (paying) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = BlueDeep
+                            Column(
+                                modifier = Modifier
+                                    .background(
+                                        Brush.linearGradient(listOf(BlueDeep, MaterialTheme.colorScheme.primary)),
+                                        RoundedCornerShape(26.dp)
                                     )
-                                } else {
-                                    Text(if (paid) "Fee paid" else "Pay ${currentBill.amount}")
+                                    .padding(20.dp)
+                            ) {
+                                Text(
+                                    if (paid) "PAID THIS MONTH" else "CURRENT MAINTENANCE FEE",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color(0xFFB9C9EE)
+                                )
+                                Spacer(Modifier.height(9.dp))
+                                Text(
+                                    currentBill.amount,
+                                    style = MaterialTheme.typography.displaySmall,
+                                    color = Color.White
+                                )
+                                Spacer(Modifier.height(5.dp))
+                                Text(
+                                    if (paid) "${currentBill.month} maintenance fee · Paid"
+                                    else "${currentBill.month} maintenance fee · Due ${currentBill.dueDate}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFFD8E2F6)
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Button(
+                                    onClick = { if (!paid && !paying) showPaymentDialog = true },
+                                    enabled = !paid && !paying,
+                                    shape = RoundedCornerShape(13.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color.White,
+                                        contentColor = BlueDeep,
+                                        disabledContainerColor = Color(0xFFDCE6FA),
+                                        disabledContentColor = BlueDeep
+                                    )
+                                ) {
+                                    if (paying) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp,
+                                            color = BlueDeep
+                                        )
+                                    } else {
+                                        Text(if (paid) "Fee paid" else "Pay ${currentBill.amount}")
+                                    }
                                 }
                             }
                         }
                     }
+                    item {
+                        InfoBanner(
+                            title = "Maintenance fee only",
+                            body = "DuitNow and FPX payments are simulated in this assignment. A receipt is saved to Supabase.",
+                            glyph = GlyphType.CARD,
+                            badge = "Secure"
+                        )
+                    }
                 }
-                item {
-                    InfoBanner(
-                        title = "Maintenance fee only",
-                        body = "DuitNow and FPX payments are simulated in this assignment. A receipt is saved locally in Supabase.",
-                        glyph = GlyphType.CARD,
-                        badge = "Secure"
-                    )
+            } else {
+                if (loading && payments.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (payments.isEmpty()) {
+                    item {
+                        EmptyStateCard(
+                            "No payments yet",
+                            "Completed maintenance-fee payments will appear here."
+                        )
+                    }
                 }
-            }
-
-            item {
-                SectionTitle("Payment history", action = if (payments.isEmpty()) null else "Receipts") { }
-            }
-            if (payments.isEmpty() && !loading) {
-                item {
-                    EmptyStateCard("No payments yet", "Completed maintenance-fee payments will appear here.")
+                items(payments, key = { it.id }) { payment ->
+                    PaymentHistoryRow(payment)
                 }
-            }
-            items(payments, key = { it.id }) { payment ->
-                PaymentHistoryRow(payment)
             }
         }
     }
@@ -191,6 +224,45 @@ fun BillingScreen(
                 showPaymentDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun BillingTabSelector(
+    selected: BillingTab,
+    onSelected: (BillingTab) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            BillingTab.entries.forEach { tab ->
+                val active = selected == tab
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { onSelected(tab) },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (active) MaterialTheme.colorScheme.surface else Color.Transparent
+                ) {
+                    Text(
+                        tab.label,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                        color = if (active) BlueDeep else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -11,12 +11,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +32,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -56,6 +62,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import com.example.condominium_maintenance_system.data.model.PhoneRules
+import com.example.condominium_maintenance_system.data.model.UnitRules
+import com.example.condominium_maintenance_system.data.model.UnitSelection
+import com.example.condominium_maintenance_system.ui.ProfileUpdateDraft
 import com.example.condominium_maintenance_system.ui.UserProfile
 import com.example.condominium_maintenance_system.ui.UserRole
 import com.example.condominium_maintenance_system.ui.VisitorRequest
@@ -100,27 +110,28 @@ fun AccountScreen(
     loading: Boolean,
     processingId: String?,
     activePass: VisitorRequest?,
+    unpaidBillCount: Int = 0,
     onBack: () -> Unit,
-    onSaveProfile: (String, String, String, String, String?) -> Unit,
-    onUploadAvatar: (Uri, ContentResolver) -> Unit,
+    onOpenBilling: () -> Unit = {},
+    onOpenAnnouncements: () -> Unit = {},
+    onOpenFacilityBooking: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onOpenVisitorForm: () -> Unit,
     onReviewVisitor: (VisitorRequest, String) -> Unit,
     onOpenPass: (VisitorRequest) -> Unit,
     onClosePass: () -> Unit,
     onSignOut: () -> Unit
 ) {
-    var showProfileEditor by remember { mutableStateOf(false) }
+    var showLogoutConfirmation by remember { mutableStateOf(false) }
     var visitorAction by remember { mutableStateOf<Pair<VisitorRequest, String>?>(null) }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
             code = "M1",
-            title = "User & access",
+            title = "Profile",
             onBack = onBack,
-            trailing = if (role == UserRole.MANAGEMENT) GlyphType.PEOPLE else GlyphType.ADD,
-            onTrailing = {
-                if (role == UserRole.RESIDENT) onOpenVisitorForm()
-            }
+            trailing = GlyphType.SETTINGS,
+            onTrailing = onOpenSettings
         )
 
         LazyColumn(
@@ -130,7 +141,7 @@ fun AccountScreen(
         ) {
             item {
                 Text(
-                    if (role == UserRole.RESIDENT) "People and access" else "Accounts and visitor access",
+                    if (role == UserRole.RESIDENT) "People and access" else "Management profile",
                     style = MaterialTheme.typography.headlineLarge
                 )
                 Spacer(Modifier.height(5.dp))
@@ -146,10 +157,7 @@ fun AccountScreen(
             }
 
             item {
-                ProfileHero(
-                    profile = profile,
-                    onEdit = { showProfileEditor = true }
-                )
+                ProfileHero(profile = profile)
             }
 
             if (loading && visitors.isEmpty() && profiles.isEmpty()) {
@@ -162,7 +170,65 @@ fun AccountScreen(
 
             if (role == UserRole.RESIDENT) {
                 item {
-                    SectionTitle("Visitor access", action = "Add visitor", onAction = onOpenVisitorForm)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ProfileActionCard(
+                            title = "Visitor Parking",
+                            caption = "Add a visitor and view requests",
+                            glyph = GlyphType.CARD,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            onClick = onOpenVisitorForm
+                        )
+                        ProfileActionCard(
+                            title = "Billing",
+                            caption = if (unpaidBillCount > 0) "Pending payment" else "All bills settled",
+                            value = unpaidBillCount.toString(),
+                            glyph = GlyphType.CARD,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                            valueColor = if (unpaidBillCount > 0) RejectRed else ApproveGreen,
+                            onClick = onOpenBilling
+                        )
+                    }
+                }
+                item {
+                    CondoCard {
+                        ProfileMenuRow(
+                            title = "Announcement",
+                            subtitle = "Notices and condominium updates",
+                            glyph = GlyphType.BELL,
+                            onClick = onOpenAnnouncements
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
+                        ProfileMenuRow(
+                            title = "Facility Booking",
+                            subtitle = "Check availability and reserve",
+                            glyph = GlyphType.CALENDAR,
+                            onClick = onOpenFacilityBooking
+                        )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f))
+                        ProfileMenuRow(
+                            title = "Logout",
+                            subtitle = "Sign out of your account",
+                            glyph = GlyphType.CLOSE,
+                            tint = RejectRed,
+                            onClick = { showLogoutConfirmation = true }
+                        )
+                    }
+                }
+                item {
+                    SectionTitle(
+                        "Visitor parking requests",
+                        action = "Add visitor",
+                        onAction = onOpenVisitorForm
+                    )
                 }
                 if (visitors.isEmpty() && !loading) {
                     item {
@@ -224,52 +290,52 @@ fun AccountScreen(
                 }
             }
 
-            item {
-                SectionTitle("Account")
-            }
-            item {
-                CondoCard {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(onClick = onSignOut),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(RejectPale, RoundedCornerShape(13.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Glyph(GlyphType.CLOSE, RejectRed, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(11.dp))
-                        Column {
-                            Text("Sign out", style = MaterialTheme.typography.labelLarge, color = RejectRed)
-                            Text(
-                                "End this CondoTrack session",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            if (role == UserRole.MANAGEMENT) {
+                item {
+                    SectionTitle("Account")
+                }
+                item {
+                    CondoCard {
+                        ProfileMenuRow(
+                            title = "Logout",
+                            subtitle = "End this management session",
+                            glyph = GlyphType.CLOSE,
+                            tint = RejectRed,
+                            onClick = { showLogoutConfirmation = true }
+                        )
                     }
                 }
             }
         }
     }
 
-    if (showProfileEditor && profile != null) {
-        ProfileEditorDialog(
-            profile = profile,
-            onDismiss = { showProfileEditor = false },
-            onUploadAvatar = { uri, resolver ->
-                onUploadAvatar(uri, resolver)
-                showProfileEditor = false
+    if (showLogoutConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirmation = false },
+            title = { Text("Log out of CondoTrack?") },
+            text = {
+                Text("You will need to sign in again to access your resident account.")
             },
-            onSave = { name, phone, email, avatarKey, avatarUrl ->
-                onSaveProfile(name, phone, email, avatarKey, avatarUrl)
-                showProfileEditor = false
-            }
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutConfirmation = false
+                        onSignOut()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = RejectRed,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Yes, log out")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirmation = false }) {
+                    Text("Cancel")
+                }
+            },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
@@ -299,7 +365,133 @@ fun AccountScreen(
 }
 
 @Composable
-private fun ProfileHero(profile: UserProfile?, onEdit: () -> Unit) {
+private fun ProfileUnitSelector(
+    label: String,
+    value: String,
+    options: List<String>,
+    modifier: Modifier = Modifier,
+    onSelected: (String) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = true },
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp)) {
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(value, style = MaterialTheme.typography.labelLarge)
+            }
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            options.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(option) },
+                    onClick = {
+                        expanded = false
+                        onSelected(option)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileActionCard(
+    title: String,
+    caption: String,
+    glyph: GlyphType,
+    modifier: Modifier = Modifier,
+    value: String? = null,
+    valueColor: Color = MaterialTheme.colorScheme.primary,
+    onClick: () -> Unit
+) {
+    CondoCard(modifier = modifier.clickable(onClick = onClick)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Glyph(glyph, MaterialTheme.colorScheme.primary, modifier = Modifier.size(19.dp))
+            }
+            Spacer(Modifier.weight(1f))
+            Text("›", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(13.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(3.dp))
+        Text(
+            caption,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        value?.let {
+            Spacer(Modifier.height(7.dp))
+            Text(
+                it,
+                style = MaterialTheme.typography.headlineMedium,
+                color = valueColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileMenuRow(
+    title: String,
+    subtitle: String,
+    glyph: GlyphType,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(tint.copy(alpha = 0.11f), RoundedCornerShape(13.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Glyph(glyph, tint, modifier = Modifier.size(19.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.labelLarge)
+            Text(
+                subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text("›", style = MaterialTheme.typography.titleLarge, color = tint)
+    }
+}
+
+@Composable
+private fun ProfileHero(profile: UserProfile?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(26.dp),
@@ -343,16 +535,6 @@ private fun ProfileHero(profile: UserProfile?, onEdit: () -> Unit) {
                         color = Color.White
                     )
                 }
-            }
-            Button(
-                onClick = onEdit,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
-                    contentColor = BlueDeep
-                )
-            ) {
-                Text("Edit", style = MaterialTheme.typography.labelMedium)
             }
         }
     }
@@ -528,11 +710,12 @@ private fun VisitorStatusPill(status: String) {
 }
 
 @Composable
-private fun ProfileEditorDialog(
+fun EditProfileScreen(
     profile: UserProfile,
-    onDismiss: () -> Unit,
+    saving: Boolean,
+    onBack: () -> Unit,
     onUploadAvatar: (Uri, ContentResolver) -> Unit,
-    onSave: (String, String, String, String, String?) -> Unit
+    onSave: (ProfileUpdateDraft) -> Unit
 ) {
     val context = LocalContext.current
     var name by remember(profile) { mutableStateOf(profile.fullName) }
@@ -540,16 +723,46 @@ private fun ProfileEditorDialog(
     var email by remember(profile) { mutableStateOf(profile.email) }
     var avatarKey by remember(profile) { mutableStateOf(profile.avatarKey) }
     var avatarUrl by remember(profile) { mutableStateOf(profile.avatarUrl) }
+    val existingUnit = remember(profile.unitCode) { UnitRules.parse(profile.unitCode) }
+    var block by remember(profile.unitCode) { mutableStateOf(existingUnit?.block ?: "A") }
+    var floor by remember(profile.unitCode) { mutableStateOf(existingUnit?.floor ?: 11) }
+    var room by remember(profile.unitCode) { mutableStateOf(existingUnit?.room ?: 1) }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+    var unitError by remember { mutableStateOf<String?>(null) }
+    var formError by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) onUploadAvatar(uri, context.contentResolver)
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Edit profile") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        ScreenHeader(
+            code = null,
+            title = "Edit Profile",
+            onBack = onBack
+        )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item {
+                Text("Profile details", style = MaterialTheme.typography.headlineLarge)
+                Spacer(Modifier.height(5.dp))
+                Text(
+                    if (profile.role == UserRole.RESIDENT) {
+                        "Update your contact information, avatar and residential unit."
+                    } else {
+                        "Update your management contact information and avatar."
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            item {
+                CondoCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -575,6 +788,10 @@ private fun ProfileEditorDialog(
                         }
                     }
                 }
+                }
+            }
+            item {
+                CondoCard {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(7.dp)
@@ -600,26 +817,51 @@ private fun ProfileEditorDialog(
                         }
                     }
                 }
+                }
+            }
+            item {
+                CondoCard {
                 OutlinedTextField(
                     value = name,
-                    onValueChange = { name = it },
+                    onValueChange = {
+                        name = it
+                        formError = null
+                    },
                     label = { Text("Full name") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
+                Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = phone,
-                    onValueChange = { phone = it },
+                    onValueChange = {
+                        phone = it
+                        phoneError = null
+                        formError = null
+                    },
                     label = { Text("Phone number") },
+                    placeholder = { Text("+60 12 345 6789") },
+                    isError = phoneError != null,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
+                phoneError?.let {
+                    Text(
+                        it,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { if (profile.role == UserRole.MANAGEMENT) email = it },
+                    onValueChange = {
+                        if (profile.role == UserRole.MANAGEMENT) email = it
+                        formError = null
+                    },
                     label = { Text("Email address") },
                     singleLine = true,
                     readOnly = profile.role == UserRole.RESIDENT,
@@ -627,31 +869,116 @@ private fun ProfileEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
-                profile.unitCode?.let {
-                    OutlinedTextField(
-                        value = "$it · Skyline Residences",
-                        onValueChange = {},
-                        label = { Text("Residential unit") },
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(14.dp)
+                if (profile.role == UserRole.RESIDENT) {
+                    Spacer(Modifier.height(14.dp))
+                    Column {
+                        Text("Residential unit", style = MaterialTheme.typography.labelLarge)
+                        Spacer(Modifier.height(7.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ProfileUnitSelector(
+                                label = "Block",
+                                value = block,
+                                options = UnitRules.blocks,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                block = it
+                                unitError = null
+                            }
+                            ProfileUnitSelector(
+                                label = "Floor",
+                                value = floor.toString(),
+                                options = UnitRules.residentialFloors.map(Int::toString),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                floor = it.toInt()
+                                unitError = null
+                            }
+                            ProfileUnitSelector(
+                                label = "Room",
+                                value = room.toString().padStart(2, '0'),
+                                options = UnitRules.roomNumbers.map { it.toString().padStart(2, '0') },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                room = it.toInt()
+                                unitError = null
+                            }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "${UnitRules.code(block, floor, room)} · Skyline Residences",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        unitError?.let {
+                            Text(
+                                it,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+                }
+            }
+            formError?.let { message ->
+                item {
+                    Text(
+                        message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
                     )
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onSave(name, phone, email, avatarKey, avatarUrl) },
-                enabled = name.isNotBlank() && phone.isNotBlank() && email.isNotBlank()
-            ) {
-                Text("Save changes")
+            item {
+                Button(
+                    onClick = {
+                        val validation = when {
+                            name.isBlank() -> "Enter your full name."
+                            phone.isBlank() -> "Enter your phone number."
+                            PhoneRules.validationMessage(phone) != null -> PhoneRules.validationMessage(phone)
+                            email.isBlank() -> "Enter your email address."
+                            profile.role == UserRole.RESIDENT ->
+                                UnitRules.validationMessage(block, floor, room)
+                            else -> null
+                        }
+                        phoneError = PhoneRules.validationMessage(phone)
+                        unitError = if (profile.role == UserRole.RESIDENT) {
+                            UnitRules.validationMessage(block, floor, room)
+                        } else {
+                            null
+                        }
+                        formError = validation
+                        if (validation == null && !saving) {
+                        onSave(
+                            ProfileUpdateDraft(
+                                fullName = name,
+                                phone = phone,
+                                email = email,
+                                avatarKey = avatarKey,
+                                avatarUrl = avatarUrl,
+                                block = block.takeIf { profile.role == UserRole.RESIDENT },
+                                floor = floor.takeIf { profile.role == UserRole.RESIDENT },
+                                room = room.takeIf { profile.role == UserRole.RESIDENT }
+                            )
+                        )
+                        }
+                    },
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (saving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text("Save changes")
+                    }
+                }
             }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        },
-        shape = RoundedCornerShape(24.dp)
-    )
+        }
+    }
 }
 
 @Composable

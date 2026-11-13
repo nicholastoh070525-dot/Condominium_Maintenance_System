@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.condominium_maintenance_system.data.model.PhoneRules
 import com.example.condominium_maintenance_system.ui.RegistrationDraft
 import com.example.condominium_maintenance_system.ui.UserRole
 import com.example.condominium_maintenance_system.ui.components.CondoCard
@@ -312,6 +313,7 @@ private fun RegistrationPage(
                 name.isBlank() -> "Enter your full name."
                 email.isBlank() -> "Enter your email address."
                 phone.isBlank() -> "Enter your phone number."
+                PhoneRules.validationMessage(phone) != null -> PhoneRules.validationMessage(phone)
                 password.length < 8 -> "Password must contain at least 8 characters."
                 password != confirmPassword -> "Passwords do not match."
                 else -> null
@@ -363,6 +365,12 @@ private fun OtpPage(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "The code expires after 10 minutes. A resent code replaces the previous code.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(Modifier.height(18.dp))
         OutlinedTextField(
             value = code,
@@ -387,6 +395,17 @@ private fun OtpPage(
         ) {
             Text(if (seconds > 0) "Resend code in ${seconds}s" else "Resend code")
         }
+        Text(
+            if (seconds > 0) {
+                "Please wait for the countdown before requesting another code."
+            } else {
+                "You can request one new code at a time."
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back")
         }
