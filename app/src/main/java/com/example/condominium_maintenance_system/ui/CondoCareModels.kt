@@ -67,7 +67,9 @@ data class FacilityBooking(
     val unit: String,
     val date: Int,
     val slot: String,
-    val status: String
+    val status: String,
+    val id: String = "",
+    val residentName: String = ""
 ) {
     val time: String
         get() = "${dayLabel(date)} · $slot"

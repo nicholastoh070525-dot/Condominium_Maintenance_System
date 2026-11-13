@@ -54,6 +54,7 @@ import com.example.condominium_maintenance_system.ui.viewmodel.AuthViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.BillingViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.ProfileViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.VisitorViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.BookingViewModel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -95,10 +96,12 @@ private fun AuthenticatedCondoTrack(
     val profileViewModel: ProfileViewModel = viewModel()
     val visitorViewModel: VisitorViewModel = viewModel()
     val billingViewModel: BillingViewModel = viewModel()
+    val bookingViewModel: BookingViewModel = viewModel()
 
     val profileState by profileViewModel.state.collectAsState()
     val visitorState by visitorViewModel.state.collectAsState()
     val billingState by billingViewModel.state.collectAsState()
+    val bookingState by bookingViewModel.state.collectAsState()
     val currentProfile = profileState.profile ?: signedInProfile
     val role = currentProfile.role
 
@@ -165,6 +168,7 @@ private fun AuthenticatedCondoTrack(
     LaunchedEffect(currentProfile.id, role) {
         profileViewModel.load(currentProfile.id, role)
         visitorViewModel.load(role, currentProfile.id)
+        bookingViewModel.load()
         if (role == UserRole.RESIDENT && currentProfile.unitId != null) {
             billingViewModel.load(currentProfile.unitId)
         }
@@ -179,6 +183,13 @@ private fun AuthenticatedCondoTrack(
     LaunchedEffect(billingState.message, billingState.error) {
         (billingState.error ?: billingState.message)?.let { showMessage(it) }
     }
+    LaunchedEffect(bookingState.message, bookingState.error) {
+        (bookingState.error ?: bookingState.message)?.let {
+            showMessage(it)
+            bookingViewModel.clearFeedback()
+        }
+    }
+
 
     fun navigate(next: AppDestination) {
         if (next == AppDestination.BILLING && role != UserRole.RESIDENT) return
@@ -266,13 +277,11 @@ private fun AuthenticatedCondoTrack(
 
                 AppDestination.BOOKINGS -> BookingScreen(
                     role = role,
-                    bookings = facilityBookings,
+                    residentUnit = currentProfile.unitCode ?: "",
+                    bookings = bookingState.bookings,
                     onBack = goHome,
-                    onAddBooking = { facilityBookings.add(0, it) },
-                    onBookingAction = { target, status ->
-                        val index = facilityBookings.indexOf(target)
-                        if (index >= 0) facilityBookings[index] = target.copy(status = status)
-                    },
+                    onAddBooking = { bookingViewModel.add(currentProfile, it) },
+                    onBookingAction = { target, status -> bookingViewModel.updateStatus(target, status) },
                     onAction = showMessage
                 )
 

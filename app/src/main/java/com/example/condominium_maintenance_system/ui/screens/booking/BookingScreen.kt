@@ -19,7 +19,6 @@ import com.example.condominium_maintenance_system.ui.theme.*
 private const val TODAY = 12
 private const val DAYS_IN_MONTH = 30
 private const val FIRST_DAY_OFFSET = 6 // 1 Nov 2026 is a Sunday, the grid starts on Monday
-private const val RESIDENT_UNIT = "Unit 12-08"
 
 private data class FacilityInfo(
     val name: String,
@@ -61,6 +60,7 @@ private fun statusTone(status: String): PillTone = when (status) {
 @Composable
 fun BookingScreen(
     role: UserRole,
+    residentUnit: String,                       // ← 新增
     bookings: List<FacilityBooking>,
     onBack: () -> Unit,
     onAddBooking: (FacilityBooking) -> Unit,
@@ -71,7 +71,7 @@ fun BookingScreen(
     var showBookingDialog by remember { mutableStateOf(false) }
     var bookingToCancel by remember { mutableStateOf<FacilityBooking?>(null) }
     var dialogFacility by remember { mutableStateOf(facilities[0].name) }
-    val myBookings = bookings.filter { it.unit == RESIDENT_UNIT }.sortedBy { it.date }
+    val myBookings = bookings.filter { it.unit == residentUnit }.sortedBy { it.date }
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -226,6 +226,7 @@ fun BookingScreen(
             date = selectedDay,
             bookings = bookings,
             initialFacility = dialogFacility,
+            residentUnit = residentUnit,
             onDismiss = { showBookingDialog = false },
             onSubmit = {
                 onAddBooking(it)
@@ -452,6 +453,7 @@ private fun BookingDialog(
     date: Int,
     bookings: List<FacilityBooking>,
     initialFacility: String,
+    residentUnit: String,
     onDismiss: () -> Unit,
     onSubmit: (FacilityBooking) -> Unit
 ) {
@@ -493,7 +495,7 @@ private fun BookingDialog(
             }
             Spacer(Modifier.height(16.dp))
             PrimaryActionButton(text = "Send booking request", enabled = slot != null) {
-                slot?.let { onSubmit(FacilityBooking(facility, RESIDENT_UNIT, date, it, "Pending")) }
+                slot?.let { onSubmit(FacilityBooking(facility, residentUnit, date, it, "Pending")) }
             }
         }
     }
