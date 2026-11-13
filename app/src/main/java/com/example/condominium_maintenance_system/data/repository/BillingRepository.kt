@@ -15,7 +15,8 @@ import java.util.TimeZone
 import java.util.UUID
 
 class BillingRepository {
-    private val client = SupabaseProvider.client
+    private val client
+        get() = SupabaseProvider.client
 
     suspend fun getBills(unitId: String): List<MaintenanceFee> =
         client.from("condotrack_bills")

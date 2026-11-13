@@ -6,7 +6,8 @@ import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 
 class AuthRepository {
-    private val auth = SupabaseProvider.client.auth
+    private val auth
+        get() = SupabaseProvider.client.auth
 
     suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
         auth.signInWith(Email) {

@@ -13,7 +13,8 @@ import java.util.TimeZone
 import java.util.UUID
 
 class VisitorRepository {
-    private val client = SupabaseProvider.client
+    private val client
+        get() = SupabaseProvider.client
 
     suspend fun getMyRequests(residentId: String): List<VisitorRequest> =
         client.from("condotrack_visitor_requests")

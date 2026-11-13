@@ -13,7 +13,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.storage.storage
 
 class ProfileRepository {
-    private val client = SupabaseProvider.client
+    private val client
+        get() = SupabaseProvider.client
 
     suspend fun getUnit(block: String, floor: Int, room: Int): UnitAvailability? {
         val row = client.from("condotrack_units")
