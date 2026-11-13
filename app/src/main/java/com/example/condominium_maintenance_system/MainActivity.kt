@@ -5,10 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.condominium_maintenance_system.ui.CondoTrackApp
@@ -21,6 +27,7 @@ import com.example.condominium_maintenance_system.ui.screens.account.AccountScre
 import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
+import com.example.condominium_maintenance_system.ui.settings.AppSettingsStore
 import com.example.condominium_maintenance_system.ui.theme.Condominium_Maintenance_SystemTheme
 import com.example.condominium_maintenance_system.ui.viewmodel.AuthUiState
 
@@ -29,8 +36,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            Condominium_Maintenance_SystemTheme {
-                CondoTrackApp()
+            val context = LocalContext.current
+            val settingsStore = remember { AppSettingsStore(context) }
+            val systemDarkMode = isSystemInDarkTheme()
+            var darkMode by remember {
+                mutableStateOf(settingsStore.darkMode ?: systemDarkMode)
+            }
+            var notificationsEnabled by remember {
+                mutableStateOf(settingsStore.notificationsEnabled)
+            }
+
+            Condominium_Maintenance_SystemTheme(darkTheme = darkMode) {
+                CondoTrackApp(
+                    notificationsEnabled = notificationsEnabled,
+                    darkMode = darkMode,
+                    onNotificationsChanged = {
+                        settingsStore.setNotificationsEnabled(it)
+                        notificationsEnabled = it
+                    },
+                    onDarkModeChanged = {
+                        settingsStore.setDarkMode(it)
+                        darkMode = it
+                    }
+                )
             }
         }
     }
@@ -61,7 +89,12 @@ fun AuthPreview() {
 fun ResidentDashboardPreview() {
     Condominium_Maintenance_SystemTheme(darkTheme = false) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            HomeScreen(UserRole.RESIDENT, {}, {})
+            HomeScreen(
+                role = UserRole.RESIDENT,
+                notificationsEnabled = true,
+                onNavigate = {},
+                onOpenNotifications = {}
+            )
         }
     }
 }
@@ -71,7 +104,12 @@ fun ResidentDashboardPreview() {
 fun ManagementDashboardPreview() {
     Condominium_Maintenance_SystemTheme(darkTheme = false) {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            HomeScreen(UserRole.MANAGEMENT, {}, {})
+            HomeScreen(
+                role = UserRole.MANAGEMENT,
+                notificationsEnabled = true,
+                onNavigate = {},
+                onOpenNotifications = {}
+            )
         }
     }
 }
@@ -136,8 +174,6 @@ fun ResidentProfilePreview() {
                 processingId = null,
                 activePass = null,
                 onBack = {},
-                onSaveProfile = { _, _, _, _, _ -> },
-                onUploadAvatar = { _, _ -> },
                 onOpenVisitorForm = {},
                 onReviewVisitor = { _, _ -> },
                 onOpenPass = {},
@@ -181,8 +217,6 @@ fun ManagementAccessPreview() {
                 processingId = null,
                 activePass = null,
                 onBack = {},
-                onSaveProfile = { _, _, _, _, _ -> },
-                onUploadAvatar = { _, _ -> },
                 onOpenVisitorForm = {},
                 onReviewVisitor = { _, _ -> },
                 onOpenPass = {},

@@ -40,6 +40,7 @@ import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.screens.account.AccountScreen
 import com.example.condominium_maintenance_system.ui.screens.account.AddVisitorScreen
+import com.example.condominium_maintenance_system.ui.screens.account.EditProfileScreen
 import com.example.condominium_maintenance_system.ui.screens.announcements.AnnouncementsScreen
 import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
@@ -48,6 +49,7 @@ import com.example.condominium_maintenance_system.ui.screens.community.Community
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
 import com.example.condominium_maintenance_system.ui.screens.requests.NewRequestScreen
 import com.example.condominium_maintenance_system.ui.screens.requests.RequestsScreen
+import com.example.condominium_maintenance_system.ui.screens.settings.SettingsScreen
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 import com.example.condominium_maintenance_system.ui.theme.Canvas
 import com.example.condominium_maintenance_system.ui.viewmodel.AuthViewModel
@@ -57,7 +59,12 @@ import com.example.condominium_maintenance_system.ui.viewmodel.VisitorViewModel
 import kotlinx.coroutines.launch
 
 @Composable
-fun CondoTrackApp() {
+fun CondoTrackApp(
+    notificationsEnabled: Boolean = true,
+    darkMode: Boolean = false,
+    onNotificationsChanged: (Boolean) -> Unit = {},
+    onDarkModeChanged: (Boolean) -> Unit = {}
+) {
     val authViewModel: AuthViewModel = viewModel()
     val authState by authViewModel.state.collectAsState()
 
@@ -81,7 +88,11 @@ fun CondoTrackApp() {
             val profile = authState.profile ?: return
             AuthenticatedCondoTrack(
                 signedInProfile = profile,
-                onSignedOut = authViewModel::signOut
+                onSignedOut = authViewModel::signOut,
+                notificationsEnabled = notificationsEnabled,
+                darkMode = darkMode,
+                onNotificationsChanged = onNotificationsChanged,
+                onDarkModeChanged = onDarkModeChanged
             )
         }
     }
@@ -90,17 +101,23 @@ fun CondoTrackApp() {
 @Composable
 private fun AuthenticatedCondoTrack(
     signedInProfile: UserProfile,
-    onSignedOut: () -> Unit
+    onSignedOut: () -> Unit,
+    notificationsEnabled: Boolean,
+    darkMode: Boolean,
+    onNotificationsChanged: (Boolean) -> Unit,
+    onDarkModeChanged: (Boolean) -> Unit
 ) {
-    val profileViewModel: ProfileViewModel = viewModel()
-    val visitorViewModel: VisitorViewModel = viewModel()
-    val billingViewModel: BillingViewModel = viewModel()
+    val profileViewModel: ProfileViewModel = viewModel(key = "profile:${signedInProfile.id}")
+    val visitorViewModel: VisitorViewModel = viewModel(key = "visitor:${signedInProfile.id}")
+    val billingViewModel: BillingViewModel = viewModel(key = "billing:${signedInProfile.id}")
 
     val profileState by profileViewModel.state.collectAsState()
     val visitorState by visitorViewModel.state.collectAsState()
     val billingState by billingViewModel.state.collectAsState()
-    val currentProfile = profileState.profile ?: signedInProfile
-    val role = currentProfile.role
+    val currentProfile = profileState.profile
+        ?.takeIf { it.id == signedInProfile.id }
+        ?: signedInProfile
+    val role = signedInProfile.role
 
     var destination by remember { mutableStateOf(AppDestination.HOME) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -162,9 +179,9 @@ private fun AuthenticatedCondoTrack(
         )
     }
 
-    LaunchedEffect(currentProfile.id, role) {
-        profileViewModel.load(currentProfile.id, role)
-        visitorViewModel.load(role, currentProfile.id)
+    LaunchedEffect(signedInProfile.id, role, currentProfile.unitId) {
+        profileViewModel.load(signedInProfile.id, role)
+        visitorViewModel.load(role, signedInProfile.id)
         if (role == UserRole.RESIDENT && currentProfile.unitId != null) {
             billingViewModel.load(currentProfile.unitId)
         }
@@ -190,7 +207,13 @@ private fun AuthenticatedCondoTrack(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (destination != AppDestination.NEW_REQUEST && destination != AppDestination.ADD_VISITOR) {
+            if (destination !in setOf(
+                    AppDestination.NEW_REQUEST,
+                    AppDestination.ADD_VISITOR,
+                    AppDestination.SETTINGS,
+                    AppDestination.EDIT_PROFILE
+                )
+            ) {
                 CondoBottomNavigation(
                     role = role,
                     current = destination,
@@ -217,6 +240,7 @@ private fun AuthenticatedCondoTrack(
             when (destination) {
                 AppDestination.HOME -> HomeScreen(
                     role = role,
+                    notificationsEnabled = notificationsEnabled,
                     onNavigate = ::navigate,
                     onOpenNotifications = {
                         if (role == UserRole.RESIDENT) navigate(AppDestination.ANNOUNCEMENTS)
@@ -232,20 +256,14 @@ private fun AuthenticatedCondoTrack(
                     loading = profileState.loading || visitorState.loading,
                     processingId = visitorState.processingId,
                     activePass = visitorState.activePass,
+                    unpaidBillCount = billingState.bills.count {
+                        it.status.equals("UNPAID", ignoreCase = true)
+                    },
                     onBack = goHome,
-                    onSaveProfile = { name, phone, email, avatarKey, avatarUrl ->
-                        profileViewModel.save(
-                            userId = currentProfile.id,
-                            fullName = name,
-                            phone = phone,
-                            email = email,
-                            avatarKey = avatarKey,
-                            avatarUrl = avatarUrl
-                        )
-                    },
-                    onUploadAvatar = { uri, resolver ->
-                        profileViewModel.uploadAvatar(currentProfile.id, uri, resolver)
-                    },
+                    onOpenBilling = { navigate(AppDestination.BILLING) },
+                    onOpenAnnouncements = { navigate(AppDestination.ANNOUNCEMENTS) },
+                    onOpenFacilityBooking = { navigate(AppDestination.BOOKINGS) },
+                    onOpenSettings = { navigate(AppDestination.SETTINGS) },
                     onOpenVisitorForm = { navigate(AppDestination.ADD_VISITOR) },
                     onReviewVisitor = { visitor, status ->
                         visitorViewModel.review(visitor, status, role, currentProfile.id)
@@ -253,6 +271,33 @@ private fun AuthenticatedCondoTrack(
                     onOpenPass = { visitor -> visitorViewModel.openPass(visitor, currentProfile.id) },
                     onClosePass = visitorViewModel::closePass,
                     onSignOut = onSignedOut
+                )
+
+                AppDestination.SETTINGS -> SettingsScreen(
+                    profile = currentProfile,
+                    notificationsEnabled = notificationsEnabled,
+                    darkMode = darkMode,
+                    onBack = { navigate(AppDestination.ACCESS) },
+                    onEditProfile = { navigate(AppDestination.EDIT_PROFILE) },
+                    onNotificationsChanged = onNotificationsChanged,
+                    onDarkModeChanged = onDarkModeChanged
+                )
+
+                AppDestination.EDIT_PROFILE -> EditProfileScreen(
+                    profile = currentProfile,
+                    saving = profileState.saving,
+                    onBack = { navigate(AppDestination.SETTINGS) },
+                    onUploadAvatar = { uri, resolver ->
+                        profileViewModel.uploadAvatar(signedInProfile.id, uri, resolver)
+                    },
+                    onSave = { update ->
+                        profileViewModel.save(
+                            userId = signedInProfile.id,
+                            update = update
+                        ) { saved ->
+                            if (saved) navigate(AppDestination.SETTINGS)
+                        }
+                    }
                 )
 
                 AppDestination.MAINTENANCE -> RequestsScreen(
@@ -380,10 +425,10 @@ private fun CondoBottomNavigation(
 
         UserRole.MANAGEMENT -> listOf(
             NavItem(AppDestination.HOME, "Overview") to GlyphType.HOME,
-            NavItem(AppDestination.ACCESS, "Access") to GlyphType.SHIELD,
             NavItem(AppDestination.MAINTENANCE, "Work") to GlyphType.WORK,
+            NavItem(AppDestination.ANNOUNCEMENTS, "Notices") to GlyphType.BELL,
             NavItem(AppDestination.BOOKINGS, "Bookings") to GlyphType.CALENDAR,
-            NavItem(AppDestination.ANNOUNCEMENTS, "Notices") to GlyphType.BELL
+            NavItem(AppDestination.ACCESS, "Profile") to GlyphType.ACCOUNT
         )
     }
 

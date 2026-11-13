@@ -2,8 +2,10 @@ package com.example.condominium_maintenance_system.data.repository
 
 import android.net.Uri
 import com.example.condominium_maintenance_system.data.model.NewProfilePayload
+import com.example.condominium_maintenance_system.data.model.PhoneRules
 import com.example.condominium_maintenance_system.data.model.ProfileRow
 import com.example.condominium_maintenance_system.data.model.UnitRow
+import com.example.condominium_maintenance_system.data.model.UnitRules
 import com.example.condominium_maintenance_system.data.remote.SupabaseProvider
 import com.example.condominium_maintenance_system.ui.RegistrationDraft
 import com.example.condominium_maintenance_system.ui.UnitAvailability
@@ -33,6 +35,7 @@ class ProfileRepository {
     }
 
     suspend fun createProfile(userId: String, draft: RegistrationDraft): UserProfile {
+        PhoneRules.validationMessage(draft.phone)?.let(::error)
         val unit = if (draft.role == UserRole.RESIDENT) {
             draft.block?.let { block ->
                 draft.floor?.let { floor ->
@@ -85,14 +88,43 @@ class ProfileRepository {
         fullName: String,
         phone: String,
         avatarKey: String,
-        avatarUrl: String?
+        avatarUrl: String?,
+        unitBlock: String? = null,
+        unitFloor: Int? = null,
+        unitRoom: Int? = null,
+        enforcePhoneValidation: Boolean = true
     ): UserProfile {
+        if (enforcePhoneValidation) {
+            PhoneRules.validationMessage(phone)?.let(::error)
+        }
+        val current = getProfile(userId) ?: error("Profile not found.")
+        val selectedUnit = if (unitBlock != null || unitFloor != null || unitRoom != null) {
+            if (current.role != UserRole.RESIDENT) {
+                error("Only resident profiles can select a residential unit.")
+            }
+            UnitRules.validationMessage(unitBlock, unitFloor, unitRoom)?.let(::error)
+            val block = requireNotNull(unitBlock)
+            val floor = requireNotNull(unitFloor)
+            val room = requireNotNull(unitRoom)
+            getUnit(
+                block = block,
+                floor = floor,
+                room = room
+            ) ?: error("Residential unit ${UnitRules.code(block, floor, room)} was not found.")
+        } else {
+            null
+        }
+
         client.from("condotrack_profiles").update(
             {
                 set("full_name", fullName.trim())
                 set("phone", phone.trim())
                 set("avatar_key", avatarKey)
                 set("avatar_url", avatarUrl)
+                selectedUnit?.let { unit ->
+                    set("unit_id", unit.id)
+                    set("unit_code", unit.unitCode)
+                }
             }
         ) {
             filter { eq("user_id", userId) }
