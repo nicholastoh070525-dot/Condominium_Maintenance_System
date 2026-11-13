@@ -51,6 +51,8 @@ import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 import com.example.condominium_maintenance_system.ui.viewmodel.AuthUiState
 import kotlinx.coroutines.delay
 
+private const val OTP_RESEND_COOLDOWN_SECONDS = 30
+
 private enum class AuthPage {
     LOGIN,
     REGISTER,
@@ -275,7 +277,13 @@ private fun RegistrationPage(
         Spacer(Modifier.height(9.dp))
         AuthField("Email", email, { email = it }, KeyboardType.Email)
         Spacer(Modifier.height(9.dp))
-        AuthField("Phone number", phone, { phone = it }, KeyboardType.Phone)
+        AuthField(
+            label = "Phone number",
+            value = phone,
+            onValueChange = { phone = PhoneRules.inputDigits(it) },
+            keyboardType = KeyboardType.Number,
+            prefix = "+60 "
+        )
         if (role == UserRole.RESIDENT) {
             Spacer(Modifier.height(14.dp))
             Text("Residential unit", style = MaterialTheme.typography.labelLarge)
@@ -323,7 +331,7 @@ private fun RegistrationPage(
                     RegistrationDraft(
                         fullName = name,
                         email = email,
-                        phone = phone,
+                        phone = PhoneRules.normalize(phone),
                         password = password,
                         role = role,
                         block = block.takeIf { role == UserRole.RESIDENT },
@@ -348,7 +356,7 @@ private fun OtpPage(
     onBack: () -> Unit
 ) {
     var code by remember { mutableStateOf("") }
-    var seconds by remember { mutableIntStateOf(60) }
+    var seconds by remember { mutableIntStateOf(OTP_RESEND_COOLDOWN_SECONDS) }
 
     LaunchedEffect(email, seconds) {
         if (seconds > 0) {
@@ -387,7 +395,7 @@ private fun OtpPage(
             onClick = {
                 if (seconds == 0) {
                     onResend()
-                    seconds = 60
+                    seconds = OTP_RESEND_COOLDOWN_SECONDS
                 }
             },
             enabled = seconds == 0 && !busy,
@@ -504,12 +512,14 @@ private fun AuthField(
     value: String,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
+    prefix: String? = null,
     isPassword: Boolean = false
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
+        prefix = prefix?.let { { Text(it) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,

@@ -54,6 +54,12 @@ class AuthViewModel(
 
     fun beginRegistration(draft: RegistrationDraft) {
         execute("Creating your account…") {
+            profileRepository.getProfileByEmail(draft.email)?.let { existing ->
+                error(
+                    "This email is already registered as ${existing.role.displayName}. " +
+                        "Sign in or use Forgot Password instead."
+                )
+            }
             authRepository.startRegistration(draft.email, draft.password).getOrThrow()
             _state.update {
                 it.copy(

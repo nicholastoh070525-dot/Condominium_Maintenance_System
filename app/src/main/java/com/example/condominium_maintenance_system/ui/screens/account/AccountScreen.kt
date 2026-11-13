@@ -719,7 +719,9 @@ fun EditProfileScreen(
 ) {
     val context = LocalContext.current
     var name by remember(profile) { mutableStateOf(profile.fullName) }
-    var phone by remember(profile) { mutableStateOf(profile.phone) }
+    var phone by remember(profile) {
+        mutableStateOf(PhoneRules.inputDigits(profile.phone))
+    }
     var email by remember(profile) { mutableStateOf(profile.email) }
     var avatarKey by remember(profile) { mutableStateOf(profile.avatarKey) }
     var avatarUrl by remember(profile) { mutableStateOf(profile.avatarUrl) }
@@ -836,15 +838,15 @@ fun EditProfileScreen(
                 OutlinedTextField(
                     value = phone,
                     onValueChange = {
-                        phone = it
+                        phone = PhoneRules.inputDigits(it)
                         phoneError = null
                         formError = null
                     },
                     label = { Text("Phone number") },
-                    placeholder = { Text("+60 12 345 6789") },
+                    prefix = { Text("+60 ") },
                     isError = phoneError != null,
                     singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )

@@ -39,21 +39,23 @@ class ProfileRulesTest {
 
     @Test
     fun malaysianPhoneNumberIsAccepted() {
-        assertNull(PhoneRules.validationMessage("+60 12 345 6789"))
+        assertNull(PhoneRules.validationMessage("108661002"))
+        assertNull(PhoneRules.validationMessage("1123456789"))
+        assertNull(PhoneRules.validationMessage("0123456789"))
+        assertEquals("+60 10 866 1002", PhoneRules.normalize("010-866 1002"))
+        assertEquals("+60 11 2345 6789", PhoneRules.normalize("1123456789"))
     }
 
     @Test
     fun malformedPhoneNumbersAreRejected() {
-        assertNull(PhoneRules.validationMessage("+60 12 345 6789"))
         listOf(
-            "0123456789",
-            "+60 123456789",
-            "+60 1 2345 6789",
-            "+61 12 345 6789",
-            "+60 12 345 678a"
+            "234567890",
+            "12345678",
+            "11234567890",
+            "10a8661002"
         ).forEach { phone ->
             assertEquals(
-                "Use a Malaysian number in the format +60 12 345 6789.",
+                "Enter 9 or 10 digits after +60, starting with 1.",
                 PhoneRules.validationMessage(phone)
             )
         }

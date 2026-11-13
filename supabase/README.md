@@ -36,6 +36,11 @@ Create unique constraints for `unit_code` and for `block + floor_number + room_n
 | `created_at` | timestamptz | Default `now()` |
 | `updated_at` | timestamptz | Default `now()` |
 
+Create a unique constraint on `email`. One verified email address can own only
+one CondoTrack profile and therefore only one role, either Resident or
+Management. Attempting to register the same email for the other role must show
+that the account already exists.
+
 ### `condotrack_visitor_requests`
 
 | Column | Type | Notes |
@@ -148,7 +153,7 @@ add a password column to `condotrack_profiles`; it would not authenticate users
 and would expose credentials unnecessarily. Use **Forgot Password** in the app,
 or **Authentication → Users** in Supabase to send a password-recovery email.
 
-The app enforces a 60-second resend countdown, and codes expire after 10
+The app enforces a 30-second resend countdown, and codes expire after 10
 minutes. Supabase Auth also applies its own email rate limits. A resent code
 replaces the previous code, so users should enter the most recent OTP.
 Different recipients require a verified Resend sending domain.
