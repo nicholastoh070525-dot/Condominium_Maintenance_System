@@ -19,4 +19,23 @@ object UnitRules {
 
     fun code(block: String, floor: Int, room: Int): String =
         "$block-${floor.toString().padStart(2, '0')}-${room.toString().padStart(2, '0')}"
+
+    fun parse(code: String?): UnitSelection? {
+        val parts = code?.trim()?.split("-") ?: return null
+        if (parts.size != 3) return null
+        val block = parts[0].uppercase()
+        val floor = parts[1].toIntOrNull() ?: return null
+        val room = parts[2].toIntOrNull() ?: return null
+        if (!isValid(block, floor, room)) return null
+        return UnitSelection(block, floor, room)
+    }
+}
+
+data class UnitSelection(
+    val block: String,
+    val floor: Int,
+    val room: Int
+) {
+    val code: String
+        get() = UnitRules.code(block, floor, room)
 }

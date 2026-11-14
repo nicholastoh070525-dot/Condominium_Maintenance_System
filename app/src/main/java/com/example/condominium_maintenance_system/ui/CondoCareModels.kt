@@ -8,7 +8,8 @@ enum class UserRole(val displayName: String, val initials: String) {
 
     companion object {
         fun fromDatabase(value: String): UserRole =
-            entries.firstOrNull { it.name.equals(value, ignoreCase = true) } ?: RESIDENT
+            entries.firstOrNull { it.name.equals(value.trim(), ignoreCase = true) }
+                ?: error("Unsupported CondoTrack role: $value")
     }
 }
 
@@ -21,7 +22,9 @@ enum class AppDestination {
     ANNOUNCEMENTS,
     BILLING,
     NEW_REQUEST,
-    ADD_VISITOR
+    ADD_VISITOR,
+    SETTINGS,
+    EDIT_PROFILE
 }
 
 data class NavItem(
@@ -67,7 +70,9 @@ data class FacilityBooking(
     val unit: String,
     val date: Int,
     val slot: String,
-    val status: String
+    val status: String,
+    val id: String = "",
+    val residentName: String = ""
 ) {
     val time: String
         get() = "${dayLabel(date)} · $slot"
@@ -142,6 +147,17 @@ data class RegistrationDraft(
             null
         }
 }
+
+data class ProfileUpdateDraft(
+    val fullName: String,
+    val phone: String,
+    val email: String,
+    val avatarKey: String,
+    val avatarUrl: String?,
+    val block: String? = null,
+    val floor: Int? = null,
+    val room: Int? = null
+)
 
 data class UnitAvailability(
     val id: String,

@@ -54,6 +54,12 @@ class AuthViewModel(
 
     fun beginRegistration(draft: RegistrationDraft) {
         execute("Creating your account…") {
+            profileRepository.getProfileByEmail(draft.email)?.let { existing ->
+                error(
+                    "This email is already registered as ${existing.role.displayName}. " +
+                        "Sign in or use Forgot Password instead."
+                )
+            }
             authRepository.startRegistration(draft.email, draft.password).getOrThrow()
             _state.update {
                 it.copy(
@@ -238,6 +244,10 @@ class AuthViewModel(
 internal fun Throwable.userMessage(fallback: String): String {
     val raw = message?.takeIf { it.isNotBlank() } ?: return fallback
     val normalized = raw.lowercase()
+    val retrySeconds = Regex("""after\s+(\d+)\s+seconds?""", RegexOption.IGNORE_CASE)
+        .find(raw)
+        ?.groupValues
+        ?.getOrNull(1)
     return when {
         "error sending confirmation email" in normalized ||
             "unexpected_failure" in normalized ->
@@ -252,8 +262,12 @@ internal fun Throwable.userMessage(fallback: String): String {
         "user already registered" in normalized ->
             "An account with this email already exists. Sign in or reset your password."
 
-        "rate limit" in normalized || "too many requests" in normalized ->
-            "Too many email requests. Wait one minute and try again."
+        "rate limit" in normalized ||
+            "too many requests" in normalized ||
+            "security purposes" in normalized ->
+            retrySeconds?.let {
+                "Please wait $it seconds before requesting another email code."
+            } ?: "Too many email requests. Please wait before requesting another code."
 
         else -> raw.lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { fallback }
     }

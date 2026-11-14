@@ -26,6 +26,7 @@ import com.example.condominium_maintenance_system.ui.theme.*
 @Composable
 fun HomeScreen(
     role: UserRole,
+    notificationsEnabled: Boolean = true,
     onNavigate: (AppDestination) -> Unit,
     onOpenNotifications: () -> Unit
 ) {
@@ -37,6 +38,7 @@ fun HomeScreen(
         item {
             HomeHeader(
                 role = role,
+                notificationsEnabled = notificationsEnabled,
                 onOpenNotifications = onOpenNotifications
             )
         }
@@ -50,7 +52,7 @@ fun HomeScreen(
         item {
             SectionTitle(
                 title = if (role == UserRole.RESIDENT) "Your services" else "Management modules",
-                action = "Module list",
+                action = if (notificationsEnabled) "Notifications" else null,
                 onAction = onOpenNotifications
             )
         }
@@ -78,7 +80,11 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(role: UserRole, onOpenNotifications: () -> Unit) {
+private fun HomeHeader(
+    role: UserRole,
+    notificationsEnabled: Boolean,
+    onOpenNotifications: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -103,19 +109,21 @@ private fun HomeHeader(role: UserRole, onOpenNotifications: () -> Unit) {
                 )
             }
         }
-        Surface(
-            modifier = Modifier
-                .size(46.dp)
-                .clickable(onClick = onOpenNotifications),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-            )
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Glyph(GlyphType.BELL, MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
+        if (notificationsEnabled) {
+            Surface(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clickable(onClick = onOpenNotifications),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                )
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Glyph(GlyphType.BELL, MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(20.dp))
+                }
             }
         }
     }

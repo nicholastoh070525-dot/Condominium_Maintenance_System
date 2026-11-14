@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -46,6 +48,7 @@ import com.example.condominium_maintenance_system.ui.theme.Purple
 import com.example.condominium_maintenance_system.ui.theme.PurplePale
 import com.example.condominium_maintenance_system.ui.theme.Success
 import com.example.condominium_maintenance_system.ui.theme.SuccessPale
+import com.example.condominium_maintenance_system.R
 
 enum class GlyphType {
     HOME,
@@ -63,7 +66,8 @@ enum class GlyphType {
     SEARCH,
     WARNING,
     CLOSE,
-    UPLOAD
+    UPLOAD,
+    SETTINGS
 }
 
 @Composable
@@ -73,6 +77,15 @@ fun Glyph(
     modifier: Modifier = Modifier,
     strokeWidth: Dp = 1.9.dp
 ) {
+    if (type == GlyphType.SETTINGS) {
+        Icon(
+            painter = painterResource(R.drawable.ic_settings),
+            contentDescription = null,
+            tint = tint,
+            modifier = modifier.size(22.dp)
+        )
+        return
+    }
     Canvas(modifier = modifier.size(22.dp)) {
         val w = size.width
         val h = size.height
@@ -278,6 +291,8 @@ fun Glyph(
                 line(0.2f, 0.86f, 0.8f, 0.86f)
                 line(0.8f, 0.86f, 0.8f, 0.72f)
             }
+
+            GlyphType.SETTINGS -> Unit
         }
     }
 }

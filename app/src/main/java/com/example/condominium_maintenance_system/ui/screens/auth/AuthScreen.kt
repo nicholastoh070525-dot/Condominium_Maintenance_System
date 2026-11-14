@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.condominium_maintenance_system.data.model.PhoneRules
 import com.example.condominium_maintenance_system.ui.RegistrationDraft
 import com.example.condominium_maintenance_system.ui.UserRole
 import com.example.condominium_maintenance_system.ui.components.CondoCard
@@ -49,6 +50,8 @@ import com.example.condominium_maintenance_system.ui.screens.common.BrandLockup
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
 import com.example.condominium_maintenance_system.ui.viewmodel.AuthUiState
 import kotlinx.coroutines.delay
+
+private const val OTP_RESEND_COOLDOWN_SECONDS = 30
 
 private enum class AuthPage {
     LOGIN,
@@ -274,7 +277,13 @@ private fun RegistrationPage(
         Spacer(Modifier.height(9.dp))
         AuthField("Email", email, { email = it }, KeyboardType.Email)
         Spacer(Modifier.height(9.dp))
-        AuthField("Phone number", phone, { phone = it }, KeyboardType.Phone)
+        AuthField(
+            label = "Phone number",
+            value = phone,
+            onValueChange = { phone = PhoneRules.inputDigits(it) },
+            keyboardType = KeyboardType.Number,
+            prefix = "+60 "
+        )
         if (role == UserRole.RESIDENT) {
             Spacer(Modifier.height(14.dp))
             Text("Residential unit", style = MaterialTheme.typography.labelLarge)
@@ -312,6 +321,7 @@ private fun RegistrationPage(
                 name.isBlank() -> "Enter your full name."
                 email.isBlank() -> "Enter your email address."
                 phone.isBlank() -> "Enter your phone number."
+                PhoneRules.validationMessage(phone) != null -> PhoneRules.validationMessage(phone)
                 password.length < 8 -> "Password must contain at least 8 characters."
                 password != confirmPassword -> "Passwords do not match."
                 else -> null
@@ -321,7 +331,7 @@ private fun RegistrationPage(
                     RegistrationDraft(
                         fullName = name,
                         email = email,
-                        phone = phone,
+                        phone = PhoneRules.normalize(phone),
                         password = password,
                         role = role,
                         block = block.takeIf { role == UserRole.RESIDENT },
@@ -346,7 +356,7 @@ private fun OtpPage(
     onBack: () -> Unit
 ) {
     var code by remember { mutableStateOf("") }
-    var seconds by remember { mutableIntStateOf(60) }
+    var seconds by remember { mutableIntStateOf(OTP_RESEND_COOLDOWN_SECONDS) }
 
     LaunchedEffect(email, seconds) {
         if (seconds > 0) {
@@ -361,6 +371,12 @@ private fun OtpPage(
         Text(
             email,
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "The code expires after 10 minutes. A resent code replaces the previous code.",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(Modifier.height(18.dp))
@@ -379,7 +395,7 @@ private fun OtpPage(
             onClick = {
                 if (seconds == 0) {
                     onResend()
-                    seconds = 60
+                    seconds = OTP_RESEND_COOLDOWN_SECONDS
                 }
             },
             enabled = seconds == 0 && !busy,
@@ -387,6 +403,17 @@ private fun OtpPage(
         ) {
             Text(if (seconds > 0) "Resend code in ${seconds}s" else "Resend code")
         }
+        Text(
+            if (seconds > 0) {
+                "Please wait for the countdown before requesting another code."
+            } else {
+                "You can request one new code at a time."
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
         TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
             Text("Back")
         }
@@ -485,12 +512,14 @@ private fun AuthField(
     value: String,
     onValueChange: (String) -> Unit,
     keyboardType: KeyboardType = KeyboardType.Text,
+    prefix: String? = null,
     isPassword: Boolean = false
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
+        prefix = prefix?.let { { Text(it) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = if (isPassword) KeyboardType.Password else keyboardType),
         visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,

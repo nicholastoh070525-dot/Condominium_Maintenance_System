@@ -96,3 +96,26 @@ data class NewPaymentPayload(
     val method: String,
     @SerialName("receipt_number") val receiptNumber: String
 )
+
+@Serializable
+data class FacilityBookingRow(
+    val id: String,
+    @SerialName("resident_id") val residentId: String,
+    @SerialName("resident_name") val residentName: String = "",
+    @SerialName("unit_code") val unitCode: String,
+    val facility: String,
+    @SerialName("booking_day") val bookingDay: Int,
+    val slot: String,
+    val status: String
+)
+
+@Serializable
+data class NewFacilityBookingPayload(
+    @SerialName("resident_id") val residentId: String,
+    @SerialName("resident_name") val residentName: String,
+    @SerialName("unit_code") val unitCode: String,
+    val facility: String,
+    @SerialName("booking_day") val bookingDay: Int,
+    val slot: String,
+    val status: String = "Pending"
+)
