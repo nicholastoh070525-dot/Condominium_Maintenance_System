@@ -21,6 +21,7 @@ data class AuthUiState(
     val pendingSignup: RegistrationDraft? = null,
     val recoveryEmail: String? = null,
     val recoveryVerified: Boolean = false,
+    val passwordUpdated: Boolean = false,
     val error: String? = null,
     val message: String? = null
 )
@@ -61,11 +62,14 @@ class AuthViewModel(
                 )
             }
             authRepository.startRegistration(draft.email, draft.password).getOrThrow()
+            val userId = authRepository.currentUserId() ?: error("Account could not be loaded.")
+            val profile = profileRepository.createProfile(userId, draft)
             _state.update {
                 it.copy(
-                    pendingSignup = draft,
+                    profile = profile,
+                    loading = false,
                     busy = false,
-                    message = "A six-digit verification code was sent to ${draft.email}."
+                    message = "Account created. Welcome to CondoTrack."
                 )
             }
         }
@@ -137,10 +141,33 @@ class AuthViewModel(
         execute("Updating password…") {
             authRepository.updatePassword(password).getOrThrow()
             authRepository.signOut().getOrThrow()
-            _state.value = AuthUiState(
-                loading = false,
-                message = "Password updated. Sign in with your new password."
-            )
+            _state.update {
+                it.copy(
+                    passwordUpdated = true,
+                    busy = false,
+                    error = null,
+                    message = null
+                )
+            }
+        }
+    }
+
+    fun continueToApp() {
+        execute("Signing in…") {
+            val userId = authRepository.currentUserId() ?: error("Account could not be loaded.")
+            val profile = profileRepository.getProfile(userId)
+                ?: error("Your CondoTrack profile is missing.")
+            _state.update {
+                it.copy(
+                    profile = profile,
+                    recoveryEmail = null,
+                    recoveryVerified = false,
+                    passwordUpdated = false,
+                    loading = false,
+                    busy = false,
+                    message = null
+                )
+            }
         }
     }
 
@@ -150,6 +177,7 @@ class AuthViewModel(
                 pendingSignup = null,
                 recoveryEmail = null,
                 recoveryVerified = false,
+                passwordUpdated = false,
                 busy = false,
                 error = null,
                 message = null

@@ -78,6 +78,7 @@ fun AuthPreview() {
             onVerifyRecovery = {},
             onResendRecovery = {},
             onResetPassword = {},
+            onLogin = {},
             onCancelFlow = {},
             onClearFeedback = {}
         )
