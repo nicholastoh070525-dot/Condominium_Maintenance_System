@@ -491,7 +491,7 @@ private fun NewPasswordPage(
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
             Spacer(Modifier.height(16.dp))
-            AuthPrimaryButton("Update password", busy) {
+            AuthPrimaryButton("Reset password", busy) {
                 error = when {
                     password.length < 8 -> "Password must contain at least 8 characters."
                     password != confirmation -> "Passwords do not match."
