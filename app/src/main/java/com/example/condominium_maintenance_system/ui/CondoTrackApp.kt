@@ -81,6 +81,7 @@ fun CondoTrackApp(
             onVerifyRecovery = authViewModel::verifyRecoveryCode,
             onResendRecovery = authViewModel::resendRecoveryCode,
             onResetPassword = authViewModel::setNewPassword,
+            onLogin = authViewModel::continueToApp,
             onCancelFlow = authViewModel::cancelPendingFlow,
             onClearFeedback = authViewModel::clearFeedback
         )

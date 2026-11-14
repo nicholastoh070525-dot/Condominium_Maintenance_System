@@ -2,6 +2,7 @@ package com.example.condominium_maintenance_system.data.repository
 
 import com.example.condominium_maintenance_system.data.remote.SupabaseProvider
 import io.github.jan.supabase.auth.OtpType
+import io.github.jan.supabase.auth.OtpVerifyResult
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 
@@ -21,18 +22,17 @@ class AuthRepository {
             this.email = email.trim().lowercase()
             this.password = password
         }
-        if (auth.currentSessionOrNull() != null) {
-            auth.signOut()
-            error("Email confirmation is disabled in Supabase. Enable Confirm Email to enforce OTP registration.")
-        }
     }
 
     suspend fun verifyRegistrationOtp(email: String, code: String): Result<Unit> = runCatching {
-        auth.verifyEmailOtp(
+        val result = auth.verifyEmailOtp(
             type = OtpType.Email.SIGNUP,
             email = email.trim().lowercase(),
             token = code.trim()
         )
+        if (result is OtpVerifyResult.Authenticated) {
+            auth.importSession(result.session)
+        }
         Unit
     }
 
@@ -45,11 +45,14 @@ class AuthRepository {
     }
 
     suspend fun verifyRecoveryOtp(email: String, code: String): Result<Unit> = runCatching {
-        auth.verifyEmailOtp(
+        val result = auth.verifyEmailOtp(
             type = OtpType.Email.RECOVERY,
             email = email.trim().lowercase(),
             token = code.trim()
         )
+        if (result is OtpVerifyResult.Authenticated) {
+            auth.importSession(result.session)
+        }
         Unit
     }
 

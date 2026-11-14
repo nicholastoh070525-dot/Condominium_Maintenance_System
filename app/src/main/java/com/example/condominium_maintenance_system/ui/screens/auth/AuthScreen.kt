@@ -41,6 +41,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.condominium_maintenance_system.data.model.EmailRules
 import com.example.condominium_maintenance_system.data.model.PhoneRules
 import com.example.condominium_maintenance_system.ui.RegistrationDraft
 import com.example.condominium_maintenance_system.ui.UserRole
@@ -73,6 +74,7 @@ fun AuthScreen(
     onVerifyRecovery: (String) -> Unit,
     onResendRecovery: () -> Unit,
     onResetPassword: (String) -> Unit,
+    onLogin: () -> Unit,
     onCancelFlow: () -> Unit,
     onClearFeedback: () -> Unit
 ) {
@@ -199,7 +201,9 @@ fun AuthScreen(
 
                     AuthPage.NEW_PASSWORD -> NewPasswordPage(
                         busy = state.busy,
+                        passwordUpdated = state.passwordUpdated,
                         onSubmit = onResetPassword,
+                        onLogin = onLogin,
                         onBack = {
                             onCancelFlow()
                             page = AuthPage.LOGIN
@@ -316,10 +320,10 @@ private fun RegistrationPage(
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
         }
         Spacer(Modifier.height(16.dp))
-        AuthPrimaryButton("Send verification code", busy) {
+        AuthPrimaryButton("Create account", busy) {
             validation = when {
                 name.isBlank() -> "Enter your full name."
-                email.isBlank() -> "Enter your email address."
+                EmailRules.validationMessage(email) != null -> EmailRules.validationMessage(email)
                 phone.isBlank() -> "Enter your phone number."
                 PhoneRules.validationMessage(phone) != null -> PhoneRules.validationMessage(phone)
                 password.length < 8 -> "Password must contain at least 8 characters."
@@ -450,7 +454,9 @@ private fun ForgotEmailPage(
 @Composable
 private fun NewPasswordPage(
     busy: Boolean,
+    passwordUpdated: Boolean,
     onSubmit: (String) -> Unit,
+    onLogin: () -> Unit,
     onBack: () -> Unit
 ) {
     var password by remember { mutableStateOf("") }
@@ -458,32 +464,44 @@ private fun NewPasswordPage(
     var error by remember { mutableStateOf<String?>(null) }
 
     CondoCard {
-        Text("Set new password", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(5.dp))
-        Text(
-            "Use at least eight characters.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.height(18.dp))
-        AuthField("New password", password, { password = it }, isPassword = true)
-        Spacer(Modifier.height(9.dp))
-        AuthField("Confirm new password", confirmation, { confirmation = it }, isPassword = true)
-        error?.let {
-            Spacer(Modifier.height(8.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
-        }
-        Spacer(Modifier.height(16.dp))
-        AuthPrimaryButton("Update password", busy) {
-            error = when {
-                password.length < 8 -> "Password must contain at least 8 characters."
-                password != confirmation -> "Passwords do not match."
-                else -> null
+        if (passwordUpdated) {
+            Text("Password updated", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "You can now sign in with your new password.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(18.dp))
+            AuthPrimaryButton("Back to sign in", busy = false) { onBack() }
+        } else {
+            Text("Set new password", style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(5.dp))
+            Text(
+                "Use at least eight characters.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(18.dp))
+            AuthField("New password", password, { password = it }, isPassword = true)
+            Spacer(Modifier.height(9.dp))
+            AuthField("Confirm new password", confirmation, { confirmation = it }, isPassword = true)
+            error?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
-            if (error == null) onSubmit(password)
-        }
-        TextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-            Text("Back to sign in")
+            Spacer(Modifier.height(16.dp))
+            AuthPrimaryButton("Update password", busy) {
+                error = when {
+                    password.length < 8 -> "Password must contain at least 8 characters."
+                    password != confirmation -> "Passwords do not match."
+                    else -> null
+                }
+                if (error == null) onSubmit(password)
+            }
+            TextButton(onClick = onLogin, modifier = Modifier.fillMaxWidth()) {
+                Text("Login")
+            }
         }
     }
 }
