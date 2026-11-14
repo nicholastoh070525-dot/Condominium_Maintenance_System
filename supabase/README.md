@@ -52,7 +52,7 @@ that the account already exists.
 | `number_plate` | text | Required |
 | `visit_at` | timestamptz | No default; app supplies the visit time |
 | `note` | text | Default `NULL` or empty string |
-| `status` | text | Default `PENDING` |
+| `status` | text | Default `PENDING`; app uses `PENDING`, `IN_PROGRESS`, then `COMPLETED` |
 | `pass_reference` | text | Default `NULL` |
 | `approved_at` | timestamptz | Default `NULL` |
 | `completed_at` | timestamptz | Default `NULL` |
@@ -88,6 +88,105 @@ Create a unique constraint for `unit_id + billing_month`.
 | `receipt_number` | text | Required and unique |
 | `paid_at` | timestamptz | Default `now()` |
 
+### `condotrack_maintenance_requests`
+
+This table stores resident complaints and their complete management response.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | Primary key, default `gen_random_uuid()` |
+| `resident_id` | uuid | Required; references `auth.users.id` |
+| `resident_name` | text | Required; app supplies the value |
+| `unit_code` | text | Required; app supplies the resident's unit |
+| `title` | text | Required |
+| `category` | text | Plumbing, Electrical, Air-con, Lift, Common area or Other |
+| `description` | text | Required |
+| `urgency` | text | Low, Normal or Urgent |
+| `status` | text | Default `PENDING` |
+| `photo_urls` | text[] | Default `'{}'::text[]`; public storage URLs |
+| `technician_name` | text | Nullable |
+| `scheduled_at` | timestamptz | Nullable visit date and time |
+| `report` | text | Nullable management maintenance report |
+| `created_at` | timestamptz | Default `now()` |
+| `updated_at` | timestamptz | Default `now()` |
+
+### `condotrack_maintenance_tasks`
+
+This table stores planned and assigned maintenance work shown on the calendar.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | Primary key, default `gen_random_uuid()` |
+| `request_id` | uuid | Nullable; references `condotrack_maintenance_requests.id` |
+| `title` | text | Required |
+| `unit_code` | text | Unit or location; use `Common area` when not unit-specific |
+| `assignee_id` | uuid | Required; references `auth.users.id` |
+| `assignee_name` | text | Required; app supplies the manager name |
+| `priority` | text | Low, Normal or Urgent |
+| `scheduled_at` | timestamptz | Required |
+| `status` | text | Default `ASSIGNED` |
+| `notes` | text | Nullable instructions |
+| `report` | text | Nullable completion report |
+| `created_at` | timestamptz | Default `now()` |
+
+You can create both tables with this SQL in **SQL Editor**:
+
+```sql
+create table if not exists public.condotrack_maintenance_requests (
+  id uuid primary key default gen_random_uuid(),
+  resident_id uuid not null references auth.users(id),
+  resident_name text not null,
+  unit_code text not null,
+  title text not null,
+  category text not null,
+  description text not null,
+  urgency text not null,
+  status text not null default 'PENDING',
+  photo_urls text[] not null default '{}'::text[],
+  technician_name text,
+  scheduled_at timestamptz,
+  report text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.condotrack_maintenance_tasks (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid references public.condotrack_maintenance_requests(id) on delete set null,
+  title text not null,
+  unit_code text not null,
+  assignee_id uuid not null references auth.users(id),
+  assignee_name text not null,
+  priority text not null,
+  scheduled_at timestamptz not null,
+  status text not null default 'ASSIGNED',
+  notes text,
+  report text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists condotrack_maintenance_requests_resident_idx
+  on public.condotrack_maintenance_requests(resident_id);
+create index if not exists condotrack_maintenance_requests_status_idx
+  on public.condotrack_maintenance_requests(status);
+create index if not exists condotrack_maintenance_tasks_schedule_idx
+  on public.condotrack_maintenance_tasks(scheduled_at);
+create index if not exists condotrack_maintenance_tasks_assignee_idx
+  on public.condotrack_maintenance_tasks(assignee_id);
+```
+
+### Maintenance request workflow
+
+The app deliberately uses three complaint statuses:
+
+1. `PENDING` after a resident submits the complaint.
+2. `IN_PROGRESS` after management assigns a technician and visit schedule.
+3. `COMPLETED` after management adds the required maintenance report.
+
+The app validates the transition and does not allow `PENDING` requests to jump
+directly to `COMPLETED`. Existing demo rows using older status values should be
+updated to `IN_PROGRESS`, or completed with a report and changed to `COMPLETED`.
+
 ## 2. Import the unit and bill data
 
 In **Table Editor → condotrack_units → Import data**, import:
@@ -116,6 +215,10 @@ For a real deployment, enable RLS and create dashboard policies equivalent to:
 - Management can read all profiles.
 - Residents can read and create their own visitor requests.
 - Management can read all visitor requests and update pending requests.
+- Residents can read and create their own maintenance requests and read tasks for their unit.
+- Residents can delete only their own maintenance requests.
+- Management can read all maintenance requests and update their status, schedule and report.
+- Management can create tasks and update only tasks where `assignee_id = auth.uid()`.
 - Residents can read bills and payments for their unit.
 - Residents can update only their own unpaid bill to PAID.
 - Residents can insert only one payment for their own unpaid bill.
@@ -162,13 +265,18 @@ Replace the email templates using the files in `email-templates/`.
 
 ## 5. Create avatar storage
 
-In **Storage**, create a public bucket named:
+In **Storage**, create these public buckets:
 
 ```text
 condotrack-avatars
+condotrack-maintenance-images
 ```
 
-For the assignment demo, allow authenticated users to upload and update files. The app stores each file under a folder named with the user UUID.
+For the assignment demo, allow authenticated users to upload and update files.
+If storage RLS is enabled, also allow users to delete files in their own UUID
+folder so complaint-photo cleanup can complete when a request is deleted.
+Avatar files are stored under the user UUID. Maintenance photos are stored under
+the resident's UUID inside `condotrack-maintenance-images`.
 
 ## 6. Project configuration
 

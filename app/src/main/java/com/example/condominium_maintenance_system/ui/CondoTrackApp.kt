@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,6 +56,7 @@ import com.example.condominium_maintenance_system.ui.theme.Canvas
 import com.example.condominium_maintenance_system.ui.viewmodel.AuthViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.BillingViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.BookingViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.MaintenanceViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.ProfileViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.VisitorViewModel
 import kotlinx.coroutines.launch
@@ -108,15 +110,18 @@ private fun AuthenticatedCondoTrack(
     onNotificationsChanged: (Boolean) -> Unit,
     onDarkModeChanged: (Boolean) -> Unit
 ) {
+    val context = LocalContext.current
     val profileViewModel: ProfileViewModel = viewModel(key = "profile:${signedInProfile.id}")
     val visitorViewModel: VisitorViewModel = viewModel(key = "visitor:${signedInProfile.id}")
     val billingViewModel: BillingViewModel = viewModel(key = "billing:${signedInProfile.id}")
     val bookingViewModel: BookingViewModel = viewModel(key = "booking:${signedInProfile.id}")
+    val maintenanceViewModel: MaintenanceViewModel = viewModel(key = "maintenance:${signedInProfile.id}")
 
     val profileState by profileViewModel.state.collectAsState()
     val visitorState by visitorViewModel.state.collectAsState()
     val billingState by billingViewModel.state.collectAsState()
     val bookingState by bookingViewModel.state.collectAsState()
+    val maintenanceState by maintenanceViewModel.state.collectAsState()
     val currentProfile = profileState.profile
         ?.takeIf { it.id == signedInProfile.id }
         ?: signedInProfile
@@ -129,31 +134,6 @@ private fun AuthenticatedCondoTrack(
         scope.launch { snackbarHostState.showSnackbar(message) }
     }
 
-    val requests = remember {
-        mutableStateListOf(
-            MaintenanceRequest(
-                title = "Kitchen sink leak",
-                reference = "#MNT-1043",
-                detail = "Plumbing · Assigned to Rafiq",
-                status = "In progress",
-                time = "Today, 2:30 PM"
-            ),
-            MaintenanceRequest(
-                title = "Air-con filter cleaning",
-                reference = "#MNT-0987",
-                detail = "Preventive maintenance",
-                status = "Completed",
-                time = "Completed 24 Oct"
-            )
-        )
-    }
-    val workOrders = remember {
-        mutableStateListOf(
-            WorkOrder("WO-3021", "Water leak", "Unit 12-08", "Rafiq A.", "Due today", "Urgent"),
-            WorkOrder("WO-3018", "Flickering light", "Unit 08-03", "Rizal K.", "Tomorrow", "Scheduled"),
-            WorkOrder("WO-3007", "Air-con service", "Unit 15-11", "Jason C.", "Friday", "Assigned")
-        )
-    }
     val lostItems = remember {
         mutableStateListOf(
             LostFoundItem("Set of keys with blue tag", "Found at Level 2 lobby · Today", "Unclaimed", "Found"),
@@ -180,6 +160,7 @@ private fun AuthenticatedCondoTrack(
         profileViewModel.load(signedInProfile.id, role)
         visitorViewModel.load(role, signedInProfile.id)
         bookingViewModel.load()
+        maintenanceViewModel.load(role, signedInProfile.id, currentProfile.unitCode)
         if (role == UserRole.RESIDENT && currentProfile.unitId != null) {
             billingViewModel.load(currentProfile.unitId)
         }
@@ -198,6 +179,12 @@ private fun AuthenticatedCondoTrack(
         (bookingState.error ?: bookingState.message)?.let {
             showMessage(it)
             bookingViewModel.clearFeedback()
+        }
+    }
+    LaunchedEffect(maintenanceState.message, maintenanceState.error) {
+        (maintenanceState.error ?: maintenanceState.message)?.let {
+            showMessage(it)
+            maintenanceViewModel.clearFeedback()
         }
     }
 
@@ -306,11 +293,28 @@ private fun AuthenticatedCondoTrack(
 
                 AppDestination.MAINTENANCE -> RequestsScreen(
                     role = role,
-                    requests = requests,
-                    workOrders = workOrders,
+                    profile = currentProfile,
+                    requests = maintenanceState.requests,
+                    tasks = maintenanceState.tasks,
+                    loading = maintenanceState.loading,
+                    saving = maintenanceState.saving,
+                    processingId = maintenanceState.processingId,
                     onBack = goHome,
                     onNewRequest = { navigate(AppDestination.NEW_REQUEST) },
-                    onAction = showMessage
+                    onRefresh = maintenanceViewModel::refresh,
+                    onUpdateRequest = maintenanceViewModel::updateRequest,
+                    onDeleteRequest = { request ->
+                        maintenanceViewModel.deleteRequest(request, currentProfile.id)
+                    },
+                    onCreateTask = { maintenanceViewModel.createTask(currentProfile, it) },
+                    onUpdateTask = { task, status, report ->
+                        maintenanceViewModel.updateTask(
+                            task = task,
+                            managerId = currentProfile.id,
+                            status = status,
+                            report = report
+                        )
+                    }
                 )
 
                 AppDestination.BOOKINGS -> BookingScreen(
@@ -367,9 +371,21 @@ private fun AuthenticatedCondoTrack(
 
                 AppDestination.NEW_REQUEST -> NewRequestScreen(
                     onBack = { navigate(AppDestination.MAINTENANCE) },
-                    onSubmit = {
-                        requests.add(0, it)
-                        navigate(AppDestination.MAINTENANCE)
+                    submitting = maintenanceState.saving,
+                    onSubmit = { category, title, description, urgency, photos ->
+                        maintenanceViewModel.submitRequest(
+                            profile = currentProfile,
+                            draft = MaintenanceRequestDraft(
+                                title = title,
+                                category = category,
+                                description = description,
+                                urgency = urgency,
+                                photoUris = photos
+                            ),
+                            resolver = context.contentResolver
+                        ) {
+                            navigate(AppDestination.MAINTENANCE)
+                        }
                     }
                 )
 

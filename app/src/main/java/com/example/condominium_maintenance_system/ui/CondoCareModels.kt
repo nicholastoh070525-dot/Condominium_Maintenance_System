@@ -1,5 +1,6 @@
 package com.example.condominium_maintenance_system.ui
 
+import android.net.Uri
 import com.example.condominium_maintenance_system.data.model.UnitRules
 
 enum class UserRole(val displayName: String, val initials: String) {
@@ -49,20 +50,65 @@ data class VisitorRequest(
 )
 
 data class MaintenanceRequest(
+    val id: String = "",
+    val residentId: String = "",
+    val residentName: String = "",
+    val unitCode: String = "",
     val title: String,
-    val reference: String,
-    val detail: String,
+    val category: String,
+    val description: String,
+    val urgency: String,
     val status: String,
-    val time: String
+    val photoUrls: List<String> = emptyList(),
+    val technicianName: String? = null,
+    val scheduledAt: String? = null,
+    val report: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null
+) {
+    val reference: String
+        get() = if (id.isBlank()) "MNT-NEW" else "MNT-${id.take(8).uppercase()}"
+
+    val detail: String
+        get() = "$category · $urgency"
+}
+
+data class MaintenanceRequestDraft(
+    val title: String,
+    val category: String,
+    val description: String,
+    val urgency: String,
+    val photoUris: List<Uri> = emptyList()
 )
 
-data class WorkOrder(
-    val reference: String,
+data class MaintenanceRequestUpdate(
+    val status: String,
+    val technicianName: String?,
+    val scheduledAt: String?,
+    val report: String?
+)
+
+data class MaintenanceTask(
+    val id: String = "",
+    val title: String,
+    val requestId: String? = null,
+    val unit: String,
+    val assigneeId: String,
+    val assigneeName: String,
+    val priority: String,
+    val scheduledAt: String,
+    val status: String,
+    val notes: String? = null,
+    val report: String? = null,
+    val createdAt: String? = null
+)
+
+data class MaintenanceTaskDraft(
     val title: String,
     val unit: String,
-    val technician: String,
-    val due: String,
-    val priority: String
+    val priority: String,
+    val scheduledAt: String,
+    val notes: String? = null
 )
 
 data class FacilityBooking(

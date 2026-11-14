@@ -119,3 +119,64 @@ data class NewFacilityBookingPayload(
     val slot: String,
     val status: String = "Pending"
 )
+
+@Serializable
+data class MaintenanceRequestRow(
+    val id: String,
+    @SerialName("resident_id") val residentId: String,
+    @SerialName("resident_name") val residentName: String = "",
+    @SerialName("unit_code") val unitCode: String = "",
+    val title: String,
+    val category: String,
+    val description: String,
+    val urgency: String,
+    val status: String,
+    @SerialName("photo_urls") val photoUrls: List<String> = emptyList(),
+    @SerialName("technician_name") val technicianName: String? = null,
+    @SerialName("scheduled_at") val scheduledAt: String? = null,
+    val report: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
+)
+
+@Serializable
+data class NewMaintenanceRequestPayload(
+    @SerialName("resident_id") val residentId: String,
+    @SerialName("resident_name") val residentName: String,
+    @SerialName("unit_code") val unitCode: String,
+    val title: String,
+    val category: String,
+    val description: String,
+    val urgency: String,
+    val status: String,
+    @SerialName("photo_urls") val photoUrls: List<String> = emptyList()
+)
+
+@Serializable
+data class MaintenanceTaskRow(
+    val id: String,
+    @SerialName("request_id") val requestId: String? = null,
+    val title: String,
+    @SerialName("unit_code") val unitCode: String = "",
+    @SerialName("assignee_id") val assigneeId: String,
+    @SerialName("assignee_name") val assigneeName: String = "",
+    val priority: String,
+    @SerialName("scheduled_at") val scheduledAt: String,
+    val status: String,
+    val notes: String? = null,
+    val report: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+data class NewMaintenanceTaskPayload(
+    @SerialName("request_id") val requestId: String? = null,
+    val title: String,
+    @SerialName("unit_code") val unitCode: String,
+    @SerialName("assignee_id") val assigneeId: String,
+    @SerialName("assignee_name") val assigneeName: String,
+    val priority: String,
+    @SerialName("scheduled_at") val scheduledAt: String,
+    val status: String = "ASSIGNED",
+    val notes: String? = null
+)
