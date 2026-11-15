@@ -49,6 +49,7 @@ import com.example.condominium_maintenance_system.ui.screens.booking.BookingScre
 import com.example.condominium_maintenance_system.ui.screens.community.CommunityScreen
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
 import com.example.condominium_maintenance_system.ui.screens.requests.NewRequestScreen
+import com.example.condominium_maintenance_system.ui.screens.requests.RequestSubmittedDialog
 import com.example.condominium_maintenance_system.ui.screens.requests.RequestsScreen
 import com.example.condominium_maintenance_system.ui.screens.settings.SettingsScreen
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
@@ -129,6 +130,7 @@ private fun AuthenticatedCondoTrack(
     val role = signedInProfile.role
 
     var destination by remember { mutableStateOf(AppDestination.HOME) }
+    var showRequestSubmitted by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val showMessage: (String) -> Unit = { message ->
@@ -386,6 +388,7 @@ private fun AuthenticatedCondoTrack(
                             resolver = context.contentResolver
                         ) {
                             navigate(AppDestination.MAINTENANCE)
+                            showRequestSubmitted = true
                         }
                     }
                 )
@@ -401,6 +404,12 @@ private fun AuthenticatedCondoTrack(
                 )
             }
         }
+    }
+
+    if (showRequestSubmitted) {
+        RequestSubmittedDialog(
+            onDismiss = { showRequestSubmitted = false }
+        )
     }
 }
 

@@ -2,6 +2,7 @@ package com.example.condominium_maintenance_system.ui.screens.requests
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,6 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -39,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
@@ -47,6 +53,8 @@ import com.example.condominium_maintenance_system.ui.components.InfoBanner
 import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.screens.common.ScreenHeader
 import com.example.condominium_maintenance_system.ui.theme.Coral
+import com.example.condominium_maintenance_system.ui.theme.Success
+import com.example.condominium_maintenance_system.ui.theme.SuccessPale
 
 private const val MAX_PHOTOS = 4
 
@@ -63,9 +71,11 @@ fun NewRequestScreen(
     var photos by remember { mutableStateOf<List<Uri>>(emptyList()) }
     val categories = listOf("Plumbing", "Electrical", "Air-con", "Lift", "Common area", "Other")
     val photoPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { selected ->
-        photos = (photos + selected).distinct().take(MAX_PHOTOS)
+        if (selected != null) {
+            photos = (photos + selected).distinct().take(MAX_PHOTOS)
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -78,11 +88,22 @@ fun NewRequestScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("What needs fixing?", style = MaterialTheme.typography.headlineLarge)
+                Text(
+                    "What needs fixing?",
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 28.sp,
+                        lineHeight = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
+                    )
+                )
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "Add the details and photos. Management can then schedule a technician and keep the status updated.",
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -162,6 +183,11 @@ fun NewRequestScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Text(
+                    "Select one photo at a time. The picker closes after each selection.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(9.dp))
                 Row(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -203,7 +229,13 @@ fun NewRequestScreen(
                                 .size(94.dp)
                                 .clip(RoundedCornerShape(18.dp))
                                 .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f))
-                                .clickable { photoPicker.launch("image/*") },
+                                .clickable {
+                                    photoPicker.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -240,4 +272,52 @@ fun NewRequestScreen(
             }
         }
     }
+}
+
+@Composable
+fun RequestSubmittedDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(62.dp)
+                    .background(SuccessPale, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Glyph(
+                    GlyphType.CHECK,
+                    Success,
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 2.8.dp
+                )
+            }
+        },
+        title = {
+            Text(
+                "Complaint submitted",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
+        text = {
+            Text(
+                "Your maintenance request is now with the management team. You can follow its progress from the Maintenance page.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Success,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("OK")
+            }
+        },
+        shape = RoundedCornerShape(26.dp)
+    )
 }

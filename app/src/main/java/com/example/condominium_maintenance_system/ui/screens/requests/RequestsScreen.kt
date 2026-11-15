@@ -78,7 +78,6 @@ import com.example.condominium_maintenance_system.ui.components.EmptyStateCard
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.components.InfoBanner
-import com.example.condominium_maintenance_system.ui.components.MetricCard
 import com.example.condominium_maintenance_system.ui.components.PillTone
 import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.components.SectionTitle
@@ -184,19 +183,14 @@ fun RequestsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text(
-                    if (role == UserRole.RESIDENT) "Your maintenance" else "Maintenance operations",
-                    style = MaterialTheme.typography.headlineLarge
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    if (role == UserRole.RESIDENT) {
+                MaintenancePageIntro(
+                    title = if (role == UserRole.RESIDENT) "Your maintenance"
+                    else "Maintenance operations",
+                    subtitle = if (role == UserRole.RESIDENT) {
                         "Report an issue, add photos and follow every update until the repair is complete."
                     } else {
                         "Review complaints, assign schedules, record reports and complete your tasks."
-                    },
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
 
@@ -287,62 +281,32 @@ fun RequestsScreen(
                 }
             } else {
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MetricCard(
-                            "Open work",
-                            requests.count { MaintenanceRules.isOpen(it.status) }
-                                .toString().padStart(2, '0'),
-                            Modifier.weight(1f),
-                            highlighted = true
-                        )
-                        MetricCard(
-                            "Urgent",
-                            requests.count { it.urgency == "Urgent" && MaintenanceRules.isOpen(it.status) }
-                                .toString().padStart(2, '0'),
-                            Modifier.weight(1f)
-                        )
-                        MetricCard(
-                            "My tasks",
-                            tasks.count { it.assigneeId == profile.id && it.status != "COMPLETED" }
-                                .toString().padStart(2, '0'),
-                            Modifier.weight(1f)
-                        )
-                    }
+                    ManagementComplaintSummary(
+                        open = openRequests.size,
+                        urgent = openRequests.count { it.urgency == "Urgent" },
+                        myTasks = tasks.count {
+                            it.assigneeId == profile.id && it.status != "COMPLETED"
+                        }
+                    )
                 }
                 item {
-                    Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        listOf("Requests", "My tasks", "Calendar").forEachIndexed { index, label ->
-                            FilterChip(
-                                selected = managementTab == index,
-                                onClick = { managementTab = index },
-                                label = { Text(label) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                )
-                            )
-                        }
-                    }
+                    SegmentedControl(
+                        labels = listOf("Requests", "My tasks", "Calendar"),
+                        selectedIndex = managementTab,
+                        onSelected = { managementTab = it }
+                    )
                 }
 
                 when (managementTab) {
                     0 -> {
                         item {
-                            Row(
-                                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(7.dp)
-                            ) {
-                                listOf("Open", "Completed", "All").forEach { filter ->
-                                    FilterChip(
-                                        selected = requestFilter == filter,
-                                        onClick = { requestFilter = filter },
-                                        label = { Text(filter) }
-                                    )
-                                }
-                            }
+                            val filters = listOf("Open", "Completed", "All")
+                            SegmentedControl(
+                                labels = filters,
+                                selectedIndex = filters.indexOf(requestFilter).coerceAtLeast(0),
+                                onSelected = { requestFilter = filters[it] },
+                                compact = true
+                            )
                         }
                         item {
                             SectionTitle(
@@ -568,6 +532,118 @@ fun RequestsScreen(
 }
 
 @Composable
+private fun MaintenancePageIntro(
+    title: String,
+    subtitle: String
+) {
+    Column {
+        Text(
+            title,
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.5).sp
+            )
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ManagementComplaintSummary(
+    open: Int,
+    urgent: Int,
+    myTasks: Int
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SummaryCountCard(
+            label = "OPEN WORK",
+            value = open,
+            background = MaterialTheme.colorScheme.primary,
+            foreground = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.weight(1f)
+        )
+        SummaryCountCard(
+            label = "URGENT",
+            value = urgent,
+            background = GoldPale,
+            foreground = Color(0xFF80561F),
+            modifier = Modifier.weight(1f)
+        )
+        SummaryCountCard(
+            label = "MY TASKS",
+            value = myTasks,
+            background = MaterialTheme.colorScheme.surface,
+            foreground = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun SegmentedControl(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    compact: Boolean = false
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(if (compact) 14.dp else 17.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            labels.forEachIndexed { index, label ->
+                val selected = selectedIndex == index
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(if (compact) 36.dp else 42.dp)
+                        .clip(RoundedCornerShape(if (compact) 11.dp else 13.dp))
+                        .clickable { onSelected(index) },
+                    shape = RoundedCornerShape(if (compact) 11.dp else 13.dp),
+                    color = when {
+                        compact && selected -> MaterialTheme.colorScheme.primary
+                        selected -> MaterialTheme.colorScheme.surface
+                        else -> Color.Transparent
+                    },
+                    shadowElevation = if (selected && !compact) 1.dp else 0.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = when {
+                                compact && selected -> MaterialTheme.colorScheme.onPrimary
+                                selected -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun ResidentComplaintSummary(
     pending: Int,
     inProgress: Int,
@@ -578,21 +654,21 @@ private fun ResidentComplaintSummary(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            ResidentSummaryCard(
+            SummaryCountCard(
                 label = "PENDING",
                 value = pending,
                 background = GoldPale,
                 foreground = Color(0xFF80561F),
                 modifier = Modifier.weight(1f)
             )
-            ResidentSummaryCard(
+            SummaryCountCard(
                 label = "IN PROGRESS",
                 value = inProgress,
                 background = BluePale,
                 foreground = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
-            ResidentSummaryCard(
+            SummaryCountCard(
                 label = "TOTAL ACTIVE",
                 value = totalActive,
                 background = MaterialTheme.colorScheme.primary,
@@ -610,7 +686,7 @@ private fun ResidentComplaintSummary(
 }
 
 @Composable
-private fun ResidentSummaryCard(
+private fun SummaryCountCard(
     label: String,
     value: Int,
     background: Color,
@@ -672,7 +748,7 @@ private fun ActiveMaintenanceCard(
             Column(Modifier.weight(1f)) {
                 Text(request.title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${request.reference} · ${request.detail}",
+                    "${request.unitCode} · ${request.detail}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -761,9 +837,9 @@ private fun RequestListCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(request.title, style = MaterialTheme.typography.labelLarge)
+                Text(request.title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "${request.reference} · ${MaintenanceRules.formatTimestamp(request.createdAt, "d MMM · h:mm a", "Just now")}",
+                    "${request.unitCode} · ${MaintenanceRules.formatTimestamp(request.createdAt, "d MMM · h:mm a", "Just now")}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -824,7 +900,7 @@ private fun ManagementRequestCard(
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text(request.title, style = MaterialTheme.typography.labelLarge)
+                Text(request.title, style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(3.dp))
                 Text(
                     "${request.unitCode} · ${request.residentName}",
@@ -832,8 +908,8 @@ private fun ManagementRequestCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    "${request.reference} · ${request.category} · ${request.urgency}",
-                    style = MaterialTheme.typography.bodyMedium,
+                    "${request.category} · ${request.urgency}",
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -884,7 +960,7 @@ private fun RequestDetailDialog(
                 Text(request.title, style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(3.dp))
                 Text(
-                    "${request.reference}  ·  ${request.unitCode}",
+                    "Unit ${request.unitCode}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1298,7 +1374,7 @@ private fun AssignRequestDialog(
             Column {
                 Text("Assign and start", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "${request.reference} · ${request.unitCode}",
+                    "Unit ${request.unitCode}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1422,7 +1498,7 @@ private fun CompleteRequestDialog(
             Column {
                 Text("Complete maintenance", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    "${request.reference} · ${request.unitCode}",
+                    "Unit ${request.unitCode}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1495,7 +1571,7 @@ private fun CompactTaskCard(task: MaintenanceTask) {
     CondoCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(task.title, style = MaterialTheme.typography.labelLarge)
+                Text(task.title, style = MaterialTheme.typography.titleSmall)
                 Text(
                     "${MaintenanceRules.dateTimeSummary(task.scheduledAt)} · ${task.assigneeName}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -1538,7 +1614,7 @@ private fun ManagementTaskCard(
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
-                Text(task.title, style = MaterialTheme.typography.labelLarge)
+                Text(task.title, style = MaterialTheme.typography.titleMedium)
                 Text(
                     "${task.unit} · ${MaintenanceRules.dateTimeSummary(task.scheduledAt)}",
                     style = MaterialTheme.typography.bodyMedium,
@@ -1909,7 +1985,8 @@ private fun MaintenanceCalendar(
                             day = day,
                             selected = day == selectedDay,
                             today = isCurrentMonth(month) && day == Calendar.getInstance().get(Calendar.DAY_OF_MONTH),
-                            eventCount = taskCount + requestCount,
+                            hasTasks = taskCount > 0,
+                            hasComplaintVisit = requestCount > 0,
                             modifier = Modifier.weight(1f),
                             onClick = { onSelectDay(day) }
                         )
@@ -1918,15 +1995,26 @@ private fun MaintenanceCalendar(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(6.dp).background(Gold, CircleShape))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "Dots show scheduled tasks and complaint visits",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(13.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CalendarLegendItem("Task", Gold)
+            CalendarLegendItem("Complaint visit", MaterialTheme.colorScheme.primary)
         }
+    }
+}
+
+@Composable
+private fun CalendarLegendItem(label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(6.dp).background(color, CircleShape))
+        Spacer(Modifier.width(5.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -1935,7 +2023,8 @@ private fun CalendarDayCell(
     day: Int,
     selected: Boolean,
     today: Boolean,
-    eventCount: Int,
+    hasTasks: Boolean,
+    hasComplaintVisit: Boolean,
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
@@ -1961,17 +2050,31 @@ private fun CalendarDayCell(
                 else MaterialTheme.colorScheme.onSurface
             )
             Spacer(Modifier.height(2.dp))
-            if (eventCount > 0) {
-                Box(
-                    Modifier
-                        .size(5.dp)
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.onPrimary else Gold,
-                            CircleShape
-                        )
-                )
-            } else {
-                Spacer(Modifier.size(5.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (hasTasks) {
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.onPrimary else Gold,
+                                CircleShape
+                            )
+                    )
+                }
+                if (hasComplaintVisit) {
+                    Box(
+                        Modifier
+                            .size(5.dp)
+                            .background(
+                                if (selected) MaterialTheme.colorScheme.onPrimary
+                                else MaterialTheme.colorScheme.primary,
+                                CircleShape
+                            )
+                    )
+                }
+                if (!hasTasks && !hasComplaintVisit) {
+                    Spacer(Modifier.size(5.dp))
+                }
             }
         }
     }
