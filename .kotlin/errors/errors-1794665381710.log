@@ -1,0 +1,3 @@
+kotlin version: 2.3.20
+error message: java.nio.file.AccessDeniedException: C:\Users\zifen\AppData\Local\kotlin\daemon\kotlin-daemon-client-tsmarker18081032991816208099.tmp
+
