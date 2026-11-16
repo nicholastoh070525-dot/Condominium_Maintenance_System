@@ -106,7 +106,9 @@ data class FacilityBookingRow(
     val facility: String,
     @SerialName("booking_day") val bookingDay: Int,
     val slot: String,
-    val status: String
+    val status: String,
+    @SerialName("start_minute") val startMinute: Int = 0,
+    @SerialName("end_minute") val endMinute: Int = 0
 )
 
 @Serializable
@@ -117,6 +119,8 @@ data class NewFacilityBookingPayload(
     val facility: String,
     @SerialName("booking_day") val bookingDay: Int,
     val slot: String,
+    @SerialName("start_minute") val startMinute: Int,
+    @SerialName("end_minute") val endMinute: Int,
     val status: String = "Pending"
 )
 
