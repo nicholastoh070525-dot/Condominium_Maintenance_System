@@ -53,9 +53,13 @@ object MaintenanceRules {
         }
     }
 
-    fun formatTimestamp(value: String?): String {
-        val date = parseTimestamp(value.orEmpty()) ?: return "Not scheduled"
-        return SimpleDateFormat("d MMM yyyy · h:mm a", Locale.US).format(date)
+    fun formatTimestamp(
+        value: String?,
+        pattern: String = "d MMM yyyy · h:mm a",
+        fallback: String = "Not scheduled"
+    ): String {
+        val date = parseTimestamp(value.orEmpty()) ?: return fallback
+        return SimpleDateFormat(pattern, Locale.US).format(date)
     }
 
     fun dateSummary(value: String?): String {
