@@ -125,6 +125,19 @@ data class NewFacilityBookingPayload(
 )
 
 @Serializable
+data class FacilityRow(
+    val id: String,
+    val name: String,
+    val symbol: String
+)
+
+@Serializable
+data class NewFacilityPayload(
+    val name: String,
+    val symbol: String
+)
+
+@Serializable
 data class MaintenanceRequestRow(
     val id: String,
     @SerialName("resident_id") val residentId: String,
