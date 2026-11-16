@@ -500,7 +500,7 @@ private fun NewPasswordPage(
                 if (error == null) onSubmit(password)
             }
             TextButton(onClick = onLogin, modifier = Modifier.fillMaxWidth()) {
-                Text("Login")
+                Text("Log in without changing password")
             }
         }
     }

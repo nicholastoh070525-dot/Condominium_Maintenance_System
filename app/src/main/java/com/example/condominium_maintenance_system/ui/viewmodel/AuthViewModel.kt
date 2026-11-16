@@ -62,14 +62,13 @@ class AuthViewModel(
                 )
             }
             authRepository.startRegistration(draft.email, draft.password).getOrThrow()
-            val userId = authRepository.currentUserId() ?: error("Account could not be loaded.")
-            val profile = profileRepository.createProfile(userId, draft)
             _state.update {
                 it.copy(
-                    profile = profile,
+                    pendingSignup = draft,
                     loading = false,
                     busy = false,
-                    message = "Account created. Welcome to CondoTrack."
+                    error = null,
+                    message = "Verification request accepted. Check ${draft.email} Inbox and Spam for the six-digit code."
                 )
             }
         }
@@ -97,7 +96,12 @@ class AuthViewModel(
         val email = _state.value.pendingSignup?.email ?: return
         execute("Sending a new code…") {
             authRepository.resendRegistrationOtp(email).getOrThrow()
-            _state.update { it.copy(busy = false, message = "A new verification code was sent.") }
+            _state.update {
+                it.copy(
+                    busy = false,
+                    message = "A new verification request was submitted. Check Inbox and Spam."
+                )
+            }
         }
     }
 
@@ -133,7 +137,12 @@ class AuthViewModel(
         val email = _state.value.recoveryEmail ?: return
         execute("Sending a new code…") {
             authRepository.requestPasswordReset(email).getOrThrow()
-            _state.update { it.copy(busy = false, message = "A new recovery code was sent.") }
+            _state.update {
+                it.copy(
+                    busy = false,
+                    message = "A new recovery request was submitted. Check Inbox and Spam."
+                )
+            }
         }
     }
 
@@ -172,6 +181,7 @@ class AuthViewModel(
     }
 
     fun cancelPendingFlow() {
+        val recoverySessionActive = _state.value.recoveryVerified
         _state.update {
             it.copy(
                 pendingSignup = null,
@@ -182,6 +192,11 @@ class AuthViewModel(
                 error = null,
                 message = null
             )
+        }
+        if (recoverySessionActive) {
+            viewModelScope.launch {
+                authRepository.signOut()
+            }
         }
     }
 
@@ -217,7 +232,7 @@ class AuthViewModel(
             return
         }
         viewModelScope.launch {
-            val result = withTimeoutOrNull(10_000) {
+            val result = withTimeoutOrNull(30_000) {
                 authRepository.restoreSession().mapCatching { userId ->
                     userId?.let { id ->
                         val stored = profileRepository.getProfile(id)
@@ -278,8 +293,9 @@ internal fun Throwable.userMessage(fallback: String): String {
         ?.getOrNull(1)
     return when {
         "error sending confirmation email" in normalized ||
+            "error sending recovery email" in normalized ||
             "unexpected_failure" in normalized ->
-            "Verification email could not be sent. Check the Supabase SMTP sender and use a verified Resend sending domain."
+            "Authentication email could not be sent. Confirm Supabase custom SMTP is enabled and the SMTP credentials and sender are valid."
 
         "invalid login credentials" in normalized ->
             "Email or password is incorrect."
@@ -289,6 +305,10 @@ internal fun Throwable.userMessage(fallback: String): String {
 
         "user already registered" in normalized ->
             "An account with this email already exists. Sign in or reset your password."
+
+        "request timeout has expired" in normalized ||
+            "request_timeout" in normalized ->
+            "The request timed out. The email may still arrive, so check Inbox and Spam before trying again."
 
         "rate limit" in normalized ||
             "too many requests" in normalized ||
