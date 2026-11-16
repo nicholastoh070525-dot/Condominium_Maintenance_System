@@ -20,18 +20,31 @@ object MaintenanceRules {
         "CANCELLED"
     )
 
-    fun normalizeRequestStatus(status: String): String {
-        val cleaned = status.trim()
+    private val timestampPatterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd HH:mm:ssX",
+        "yyyy-MM-dd"
+    )
+
+    fun normalizeRequestStatus(value: String): String {
+        val cleaned = value.trim()
             .removeSuffix("::text")
             .trim()
             .removeSurrounding("\"")
             .removeSurrounding("'")
             .trim()
-            .uppercase()
+            .uppercase(Locale.US)
+            .replace('-', '_')
+            .replace(' ', '_')
         return cleaned.ifBlank { "PENDING" }
     }
 
-    fun requestStatusLabel(status: String): String = normalizeRequestStatus(status)
+    fun requestStatusLabel(value: String): String = normalizeRequestStatus(value)
 
     fun canChangeRequestStatus(current: String, next: String): Boolean =
         when (normalizeRequestStatus(current)) {
@@ -47,33 +60,56 @@ object MaintenanceRules {
                 canChangeRequestStatus(normalizedCurrent, normalizedNext)
     }
 
-    fun taskStatusLabel(status: String): String = when (status.uppercase()) {
-        "ASSIGNED" -> "Assigned"
+    fun taskStatusLabel(value: String): String = when (
+        value.trim().uppercase(Locale.US).replace('-', '_').replace(' ', '_')
+    ) {
         "IN_PROGRESS" -> "In progress"
         "COMPLETED" -> "Completed"
         "CANCELLED" -> "Cancelled"
-        else -> requestStatusLabel(status)
+        else -> "Assigned"
     }
 
-    fun isOpen(status: String): Boolean =
-        normalizeRequestStatus(status) != "COMPLETED"
+    fun isOpen(value: String): Boolean =
+        normalizeRequestStatus(value) != "COMPLETED"
 
-    fun isClosed(status: String): Boolean = !isOpen(status)
+    fun parseTimestamp(value: String): Date? {
+        if (value.isBlank()) return null
+        return timestampPatterns.firstNotNullOfOrNull { pattern ->
+            runCatching {
+                SimpleDateFormat(pattern, Locale.US).apply {
+                    isLenient = false
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(value)
+            }.getOrNull()
+        }
+    }
 
     fun formatTimestamp(
         value: String?,
-        pattern: String,
+        pattern: String = "d MMM yyyy · h:mm a",
         fallback: String = "Not scheduled"
     ): String {
-        if (value.isNullOrBlank()) return fallback
-        val parsed = parseTimestamp(value) ?: return value
-        return SimpleDateFormat(pattern, Locale.US).format(parsed)
+        val date = parseTimestamp(value.orEmpty()) ?: return fallback
+        return SimpleDateFormat(pattern, Locale.US).format(date)
     }
 
     fun dayOfMonth(value: String?): Int? {
-        val parsed = parseTimestamp(value ?: return null) ?: return null
-        return Calendar.getInstance().apply { time = parsed }.get(Calendar.DAY_OF_MONTH)
+        val date = parseTimestamp(value.orEmpty()) ?: return null
+        return Calendar.getInstance().apply { time = date }.get(Calendar.DAY_OF_MONTH)
     }
+
+    fun dateSummary(value: String?): String {
+        val date = parseTimestamp(value.orEmpty()) ?: return "Choose a date"
+        return SimpleDateFormat("EEE, d MMM yyyy", Locale.US).format(date)
+    }
+
+    fun timeSummary(value: String?): String {
+        val date = parseTimestamp(value.orEmpty()) ?: return "Time not set"
+        return SimpleDateFormat("h:mm a", Locale.US).format(date)
+    }
+
+    fun dateTimeSummary(value: String?): String =
+        "${dateSummary(value)} · ${timeSummary(value)}"
 
     fun scheduleTimestamp(
         year: Int,
@@ -82,46 +118,10 @@ object MaintenanceRules {
         hour: Int,
         minute: Int
     ): String {
-        val calendar = Calendar.getInstance().apply {
-            set(Calendar.YEAR, year)
-            set(Calendar.MONTH, month)
-            set(Calendar.DAY_OF_MONTH, day)
-            set(Calendar.HOUR_OF_DAY, hour)
-            set(Calendar.MINUTE, minute)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        val local = Calendar.getInstance().apply {
+            clear()
+            set(year, month, day, hour, minute, 0)
         }
-        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(calendar.time)
-    }
-
-    fun dateTimeSummary(value: String?): String =
-        formatTimestamp(value, "d MMM yyyy · h:mm a")
-
-    fun dateSummary(value: String?): String =
-        formatTimestamp(value, "d MMM yyyy")
-
-    fun timeSummary(value: String?): String =
-        formatTimestamp(value, "h:mm a")
-
-    fun parseTimestamp(value: String): Date? {
-        val patterns = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-            "yyyy-MM-dd'T'HH:mm:ssXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd"
-        )
-        for (pattern in patterns) {
-            val parsed = runCatching {
-                SimpleDateFormat(pattern, Locale.US).apply {
-                    if (pattern.endsWith("'Z'")) {
-                        timeZone = TimeZone.getTimeZone("UTC")
-                    }
-                    isLenient = false
-                }.parse(value)
-            }.getOrNull()
-            if (parsed != null) return parsed
-        }
-        return null
+        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(local.time)
     }
 }

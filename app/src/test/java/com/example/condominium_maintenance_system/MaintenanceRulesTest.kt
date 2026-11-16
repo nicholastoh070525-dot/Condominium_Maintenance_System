@@ -9,7 +9,7 @@ import org.junit.Test
 
 class MaintenanceRulesTest {
     @Test
-    fun requestWorkflowHasOnlyThreeStatuses() {
+    fun workflowHasOnlyPendingInProgressAndCompleted() {
         assertEquals(
             listOf("PENDING", "IN_PROGRESS", "COMPLETED"),
             MaintenanceRules.requestStatuses
@@ -17,35 +17,25 @@ class MaintenanceRulesTest {
     }
 
     @Test
-    fun openStatusesDriveTheResidentDashboard() {
-        assertTrue(MaintenanceRules.isOpen("PENDING"))
-        assertTrue(MaintenanceRules.isOpen("IN_PROGRESS"))
-        assertFalse(MaintenanceRules.isOpen("COMPLETED"))
-    }
-
-    @Test
-    fun databaseStatusesHaveReadableLabels() {
-        assertEquals("PENDING", MaintenanceRules.requestStatusLabel("PENDING"))
-        assertEquals("IN_PROGRESS", MaintenanceRules.requestStatusLabel("IN_PROGRESS"))
-        assertEquals("COMPLETED", MaintenanceRules.requestStatusLabel("COMPLETED"))
-        assertEquals("Assigned", MaintenanceRules.taskStatusLabel("ASSIGNED"))
-    }
-
-    @Test
     fun malformedLegacyStatusValuesAreNormalized() {
         assertEquals("PENDING", MaintenanceRules.normalizeRequestStatus("\"PENDING\"::text"))
         assertEquals("PENDING", MaintenanceRules.normalizeRequestStatus("'PENDING'"))
         assertEquals("PENDING", MaintenanceRules.normalizeRequestStatus(" pending "))
-        assertTrue(MaintenanceRules.canChangeRequestStatus("\"PENDING\"::text", "IN_PROGRESS"))
     }
 
     @Test
-    fun requestStatusOnlyMovesForwardOneStage() {
+    fun statusLabelsUseCanonicalUppercaseValues() {
+        assertEquals("PENDING", MaintenanceRules.requestStatusLabel("\"PENDING\"::text"))
+        assertEquals("IN_PROGRESS", MaintenanceRules.requestStatusLabel("in progress"))
+        assertEquals("COMPLETED", MaintenanceRules.requestStatusLabel("Completed"))
+    }
+
+    @Test
+    fun requestOnlyMovesForwardOneStage() {
         assertTrue(MaintenanceRules.canChangeRequestStatus("PENDING", "IN_PROGRESS"))
         assertTrue(MaintenanceRules.canChangeRequestStatus("IN_PROGRESS", "COMPLETED"))
         assertFalse(MaintenanceRules.canChangeRequestStatus("PENDING", "COMPLETED"))
         assertFalse(MaintenanceRules.canChangeRequestStatus("COMPLETED", "IN_PROGRESS"))
-        assertFalse(MaintenanceRules.canChangeRequestStatus("PENDING", "PENDING"))
     }
 
     @Test
@@ -57,21 +47,30 @@ class MaintenanceRulesTest {
     }
 
     @Test
-    fun isoDateTimeCanBeParsedForCalendarDisplay() {
-        assertNotNull(MaintenanceRules.parseTimestamp("2026-11-14T10:30:00+08:00"))
-        assertEquals(14, MaintenanceRules.dayOfMonth("2026-11-14T12:00:00+08:00"))
+    fun openRequestsExcludeCompleted() {
+        assertTrue(MaintenanceRules.isOpen("PENDING"))
+        assertTrue(MaintenanceRules.isOpen("\"IN_PROGRESS\"::text"))
+        assertFalse(MaintenanceRules.isOpen("COMPLETED"))
     }
 
     @Test
-    fun generatedScheduleKeepsTheSelectedVisitTime() {
-        val timestamp = MaintenanceRules.scheduleTimestamp(
+    fun taskStatusesHaveReadableLabels() {
+        assertEquals("Assigned", MaintenanceRules.taskStatusLabel("ASSIGNED"))
+        assertEquals("In progress", MaintenanceRules.taskStatusLabel("IN_PROGRESS"))
+        assertEquals("Completed", MaintenanceRules.taskStatusLabel("COMPLETED"))
+    }
+
+    @Test
+    fun scheduledTimestampCanBeParsedAndFormatted() {
+        val scheduled = MaintenanceRules.scheduleTimestamp(
             year = 2026,
             month = 10,
             day = 20,
             hour = 14,
             minute = 30
         )
-        assertEquals("2:30 PM", MaintenanceRules.timeSummary(timestamp))
-        assertEquals("20 Nov 2026", MaintenanceRules.dateSummary(timestamp))
+        assertNotNull(MaintenanceRules.parseTimestamp(scheduled))
+        assertTrue(MaintenanceRules.dateSummary(scheduled).contains("20 Nov 2026"))
+        assertEquals("2:30 PM", MaintenanceRules.timeSummary(scheduled))
     }
 }

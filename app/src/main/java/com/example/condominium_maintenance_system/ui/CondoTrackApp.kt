@@ -324,9 +324,12 @@ private fun AuthenticatedCondoTrack(
                     role = role,
                     residentUnit = currentProfile.unitCode ?: "",
                     bookings = bookingState.bookings,
+                    facilities = bookingState.facilities,
                     onBack = goHome,
                     onAddBooking = { bookingViewModel.add(currentProfile, it) },
                     onBookingAction = { target, status -> bookingViewModel.updateStatus(target, status) },
+                    onAddFacility = { name, symbol -> bookingViewModel.addFacility(name, symbol) },
+                    onDeleteFacility = { bookingViewModel.deleteFacility(it) },
                     onAction = showMessage
                 )
 

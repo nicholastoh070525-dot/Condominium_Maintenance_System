@@ -34,8 +34,8 @@ class MaintenanceViewModel(
     private val _state = MutableStateFlow(MaintenanceUiState())
     val state: StateFlow<MaintenanceUiState> = _state.asStateFlow()
 
-    private var currentRole: UserRole = UserRole.RESIDENT
-    private var currentUserId: String = ""
+    private var currentRole = UserRole.RESIDENT
+    private var currentUserId = ""
     private var currentUnitCode: String? = null
 
     fun load(role: UserRole, userId: String, unitCode: String?) {
@@ -45,7 +45,7 @@ class MaintenanceViewModel(
         if (!SupabaseProvider.isConfigured) return
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
-            runCatching { fetchAll() }
+            runCatching { loadData() }
                 .onSuccess { (requests, tasks) ->
                     _state.update {
                         it.copy(
@@ -59,9 +59,7 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             loading = false,
-                            error = error.userMessage(
-                                "Unable to load maintenance data. Check that the maintenance tables are set up in Supabase."
-                            )
+                            error = error.userMessage("Unable to load maintenance data.")
                         )
                     }
                 }
@@ -82,8 +80,8 @@ class MaintenanceViewModel(
         viewModelScope.launch {
             _state.update { it.copy(saving = true, error = null, message = null) }
             runCatching {
-                repository.createRequest(profile, draft, resolver)
-                fetchAll()
+                repository.submitRequest(profile, draft, resolver)
+                loadData()
             }
                 .onSuccess { (requests, tasks) ->
                     _state.update {
@@ -100,26 +98,19 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             saving = false,
-                            error = error.userMessage(
-                                "Unable to submit the request. Check the photo storage bucket and try again."
-                            )
+                            error = error.userMessage("Unable to submit maintenance request.")
                         )
                     }
                 }
         }
     }
 
-    fun updateRequest(
-        request: MaintenanceRequest,
-        update: MaintenanceRequestUpdate
-    ) {
+    fun updateRequest(request: MaintenanceRequest, update: MaintenanceRequestUpdate) {
         viewModelScope.launch {
-            _state.update {
-                it.copy(processingId = request.id, error = null, message = null)
-            }
+            _state.update { it.copy(processingId = request.id, error = null, message = null) }
             runCatching {
                 repository.updateRequest(request.id, update)
-                fetchAll()
+                loadData()
             }
                 .onSuccess { (requests, tasks) ->
                     _state.update {
@@ -135,7 +126,7 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             processingId = null,
-                            error = error.userMessage("Unable to update the maintenance request.")
+                            error = error.userMessage("Unable to update maintenance request.")
                         )
                     }
                 }
@@ -148,11 +139,9 @@ class MaintenanceViewModel(
             return
         }
         viewModelScope.launch {
-            _state.update {
-                it.copy(processingId = request.id, error = null, message = null)
-            }
+            _state.update { it.copy(processingId = request.id, error = null, message = null) }
             runCatching {
-                repository.deleteRequest(request.id, residentId) to fetchAll()
+                repository.deleteRequest(request.id, residentId) to loadData()
             }
                 .onSuccess { (photosRemoved, refreshed) ->
                     val (requests, tasks) = refreshed
@@ -162,7 +151,7 @@ class MaintenanceViewModel(
                             tasks = tasks,
                             processingId = null,
                             message = if (photosRemoved) {
-                                "Complaint deleted."
+                                "Maintenance request deleted."
                             } else {
                                 "Complaint deleted. Some photos could not be removed from storage."
                             }
@@ -173,7 +162,7 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             processingId = null,
-                            error = error.userMessage("Unable to delete the complaint.")
+                            error = error.userMessage("Unable to delete maintenance request.")
                         )
                     }
                 }
@@ -185,7 +174,7 @@ class MaintenanceViewModel(
             _state.update { it.copy(saving = true, error = null, message = null) }
             runCatching {
                 repository.createTask(profile, draft)
-                fetchAll()
+                loadData()
             }
                 .onSuccess { (requests, tasks) ->
                     _state.update {
@@ -193,7 +182,7 @@ class MaintenanceViewModel(
                             requests = requests,
                             tasks = tasks,
                             saving = false,
-                            message = "Maintenance task scheduled and assigned to you."
+                            message = "Maintenance task scheduled."
                         )
                     }
                 }
@@ -201,7 +190,7 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             saving = false,
-                            error = error.userMessage("Unable to create the maintenance task.")
+                            error = error.userMessage("Unable to schedule maintenance task.")
                         )
                     }
                 }
@@ -212,15 +201,13 @@ class MaintenanceViewModel(
         task: MaintenanceTask,
         managerId: String,
         status: String,
-        report: String? = null
+        report: String?
     ) {
         viewModelScope.launch {
-            _state.update {
-                it.copy(processingId = task.id, error = null, message = null)
-            }
+            _state.update { it.copy(processingId = task.id, error = null, message = null) }
             runCatching {
-                repository.updateTask(task.id, status, managerId, report)
-                fetchAll()
+                repository.updateTask(task.id, managerId, status, report)
+                loadData()
             }
                 .onSuccess { (requests, tasks) ->
                     _state.update {
@@ -228,7 +215,11 @@ class MaintenanceViewModel(
                             requests = requests,
                             tasks = tasks,
                             processingId = null,
-                            message = "Task status updated."
+                            message = if (status == "COMPLETED") {
+                                "Maintenance task completed."
+                            } else {
+                                "Maintenance task started."
+                            }
                         )
                     }
                 }
@@ -236,7 +227,7 @@ class MaintenanceViewModel(
                     _state.update {
                         it.copy(
                             processingId = null,
-                            error = error.userMessage("Unable to update the maintenance task.")
+                            error = error.userMessage("Unable to update maintenance task.")
                         )
                     }
                 }
@@ -247,7 +238,7 @@ class MaintenanceViewModel(
         _state.update { it.copy(error = null, message = null) }
     }
 
-    private suspend fun fetchAll(): Pair<List<MaintenanceRequest>, List<MaintenanceTask>> =
+    private suspend fun loadData(): Pair<List<MaintenanceRequest>, List<MaintenanceTask>> =
         repository.getRequests(currentRole, currentUserId) to
                 repository.getTasks(currentRole, currentUnitCode)
 }

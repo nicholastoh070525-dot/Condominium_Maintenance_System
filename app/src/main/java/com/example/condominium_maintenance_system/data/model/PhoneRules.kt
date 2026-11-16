@@ -22,9 +22,19 @@ object PhoneRules {
     }
 
     fun validationMessage(phone: String): String? =
-        if (malaysianMobile.matches(nationalDigits(phone))) {
+        if (hasOnlyPhoneCharacters(phone) && malaysianMobile.matches(nationalDigits(phone))) {
             null
         } else {
             "Enter 9 or 10 digits after +60, starting with 1."
+        }
+
+    private fun hasOnlyPhoneCharacters(phone: String): Boolean =
+        phone.all { character ->
+            character.isDigit() ||
+                    character == '+' ||
+                    character == ' ' ||
+                    character == '-' ||
+                    character == '(' ||
+                    character == ')'
         }
 }

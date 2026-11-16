@@ -118,11 +118,19 @@ data class FacilityBooking(
     val slot: String,
     val status: String,
     val id: String = "",
-    val residentName: String = ""
+    val residentName: String = "",
+    val startMinute: Int = 0,
+    val endMinute: Int = 0
 ) {
     val time: String
         get() = "${dayLabel(date)} · $slot"
 }
+
+data class Facility(
+    val name: String,
+    val symbol: String,
+    val id: String = ""
+)
 
 fun dayLabel(day: Int): String {
     val names = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
@@ -131,6 +139,21 @@ fun dayLabel(day: Int): String {
 
 fun FacilityBooking.occupiesSlot(): Boolean =
     status == "Pending" || status == "Approved"
+
+fun formatMinutes(minutes: Int): String {
+    val hour24 = minutes / 60
+    val minute = minutes % 60
+    val suffix = if (hour24 < 12) "AM" else "PM"
+    val hour12 = if (hour24 % 12 == 0) 12 else hour24 % 12
+    return "$hour12:${minute.toString().padStart(2, '0')} $suffix"
+}
+
+fun timeRangeLabel(startMinute: Int, endMinute: Int): String =
+    "${formatMinutes(startMinute)} – ${formatMinutes(endMinute)}"
+
+fun FacilityBooking.overlaps(facility: String, date: Int, startMinute: Int, endMinute: Int): Boolean =
+    this.facility == facility && this.date == date && occupiesSlot() &&
+            this.startMinute < endMinute && startMinute < this.endMinute
 
 data class LostFoundItem(
     val title: String,
