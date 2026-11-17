@@ -440,11 +440,16 @@ private fun AuthenticatedCondoTrack(
                         )
                     } else {
                         ManagementBillingScreen(
+                            month = managementBillingState.month,
                             bills = managementBillingState.bills,
                             monthLabel = managementBillingState.monthLabel,
                             loading = managementBillingState.loading,
+                            deletingBills = managementBillingState.deletingBills,
                             onBack = goRoot,
                             onCreateBills = { navigate(AppDestination.CREATE_BILLS) },
+                            onDeleteMonth = { password, onSuccess ->
+                                managementBillingViewModel.deleteMonthBills(password, onSuccess)
+                            },
                             onPreviousMonth = { managementBillingViewModel.changeMonth(-1) },
                             onNextMonth = { managementBillingViewModel.changeMonth(1) }
                         )
@@ -485,11 +490,14 @@ private fun AuthenticatedCondoTrack(
                 )
 
                 AppDestination.CREATE_BILLS -> CreateBillsScreen(
+                    month = managementBillingState.month,
                     monthLabel = managementBillingState.monthLabel,
                     units = managementBillingState.units,
                     existingBills = managementBillingState.bills,
+                    loading = managementBillingState.loading,
                     saving = managementBillingState.saving,
                     onBack = { navigate(AppDestination.BILLING) },
+                    onMonthSelected = managementBillingViewModel::selectMonth,
                     onIssue = { scope, amount, dueDate ->
                         managementBillingViewModel.issueBills(
                             scope = scope,

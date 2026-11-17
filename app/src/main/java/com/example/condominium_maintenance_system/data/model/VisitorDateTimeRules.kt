@@ -1,6 +1,7 @@
 package com.example.condominium_maintenance_system.data.model
 
 import java.text.SimpleDateFormat
+import java.text.ParsePosition
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -17,6 +18,44 @@ data class VisitorDateTimeValidation(
 }
 
 object VisitorDateTimeRules {
+    fun datePickerMillis(
+        dateText: String?,
+        nowMillis: Long = System.currentTimeMillis(),
+        timeZone: TimeZone = TimeZone.getDefault()
+    ): Long {
+        val localDate = dateText
+            ?.takeIf { it.isNotBlank() }
+            ?.let { text ->
+                runCatching {
+                    SimpleDateFormat("dd/MM/yyyy", Locale.US).apply {
+                        isLenient = false
+                        this.timeZone = timeZone
+                    }.parse(text.trim())
+                }.getOrNull()
+            }
+        val local = Calendar.getInstance(timeZone).apply {
+            if (localDate == null) timeInMillis = nowMillis else time = localDate
+        }
+        val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(
+                local.get(Calendar.YEAR),
+                local.get(Calendar.MONTH),
+                local.get(Calendar.DAY_OF_MONTH),
+                0,
+                0,
+                0
+            )
+            set(Calendar.MILLISECOND, 0)
+        }
+        return utc.timeInMillis
+    }
+
+    fun dateTextFromPickerMillis(pickerMillis: Long): String =
+        SimpleDateFormat("dd/MM/yyyy", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date(pickerMillis))
+
     fun formatDateInput(input: String): String {
         val digits = input.filter(Char::isDigit).take(8)
         return buildString {
@@ -24,6 +63,15 @@ object VisitorDateTimeRules {
                 if (index == 2 || index == 4) append('/')
                 append(character)
             }
+        }
+    }
+
+    fun formatTimeInput(input: String): String {
+        val digits = input.filter(Char::isDigit).take(4)
+        return if (digits.length <= 2) {
+            digits
+        } else {
+            "${digits.take(2)}:${digits.drop(2)}"
         }
     }
 
@@ -62,15 +110,20 @@ object VisitorDateTimeRules {
             )
         }
 
-        val parsedTime = listOf("h:mm a", "hh:mm a", "H:mm", "HH:mm")
+        val timeInput = timeText.trim()
+        val parsedTime = listOf("H:mm", "HH:mm")
             .firstNotNullOfOrNull { pattern ->
-                SimpleDateFormat(pattern, Locale.US).apply {
+                val formatter = SimpleDateFormat(pattern, Locale.US).apply {
                     isLenient = false
                     this.timeZone = timeZone
-                }.let { formatter -> runCatching { formatter.parse(timeText.trim()) }.getOrNull() }
+                }
+                val position = ParsePosition(0)
+                runCatching { formatter.parse(timeInput, position) }
+                    .getOrNull()
+                    ?.takeIf { position.index == timeInput.length }
             }
             ?: return VisitorDateTimeValidation(
-                timeError = "Use a valid time such as 6:00 PM or 18:00."
+                timeError = "Use 24-hour time such as 13:00."
             )
 
         val timeCalendar = Calendar.getInstance(timeZone).apply { time = parsedTime }
@@ -91,7 +144,7 @@ object VisitorDateTimeRules {
         val isoValue = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).apply {
             this.timeZone = timeZone
         }.format(selectedDate)
-        val displayValue = SimpleDateFormat("dd MMM yyyy · h:mm a", Locale.US).apply {
+        val displayValue = SimpleDateFormat("dd MMM yyyy · HH:mm", Locale.US).apply {
             this.timeZone = timeZone
         }.format(selectedDate)
         return VisitorDateTimeValidation(

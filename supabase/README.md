@@ -222,6 +222,29 @@ For a real deployment, enable RLS and create dashboard policies equivalent to:
 - Residents can read bills and payments for their unit.
 - Residents can update only their own unpaid bill to PAID.
 - Residents can insert only one payment for their own unpaid bill.
+- Management can delete unpaid bills for the selected billing month.
+- Residents cannot delete bills.
+
+For a production RLS setup, create the management delete policy with:
+
+```sql
+drop policy if exists "Management can delete unpaid bills"
+on public.condotrack_bills;
+
+create policy "Management can delete unpaid bills"
+on public.condotrack_bills
+for delete
+to authenticated
+using (
+  status = 'UNPAID'
+  and exists (
+    select 1
+    from public.condotrack_profiles
+    where condotrack_profiles.user_id = auth.uid()
+      and condotrack_profiles.role = 'MANAGEMENT'
+  )
+);
+```
 
 Do not use these tables as a public anonymous service.
 

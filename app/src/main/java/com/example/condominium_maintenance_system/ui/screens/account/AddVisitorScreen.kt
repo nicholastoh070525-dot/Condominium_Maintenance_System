@@ -1,6 +1,10 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.example.condominium_maintenance_system.ui.screens.account
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,10 +23,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,6 +68,10 @@ fun AddVisitorScreen(
     var validationMessage by remember { mutableStateOf<String?>(null) }
     var dateError by remember { mutableStateOf<String?>(null) }
     var timeError by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = VisitorDateTimeRules.datePickerMillis(date)
+    )
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -162,35 +174,29 @@ fun AddVisitorScreen(
                     Text("Visit schedule", style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(5.dp))
                     Text(
-                        "Date and time are entered in separate fields.",
+                        "Choose the visit date, then enter the time.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Column(modifier = Modifier.weight(1f)) {
-                            VisitorOutlinedField(
-                                label = "Date",
+                            VisitorDatePickerField(
                                 value = date,
-                                placeholder = "DD/MM/YYYY",
-                                keyboardType = KeyboardType.Number,
                                 isError = dateError != null,
-                                onValueChange = {
-                                    date = VisitorDateTimeRules.formatDateInput(it)
-                                    dateError = null
-                                    validationMessage = null
-                                }
+                                onClick = { showDatePicker = true }
                             )
                             FieldError(dateError)
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             VisitorOutlinedField(
-                                label = "Time",
+                                label = "Time (24-hour)",
                                 value = time,
-                                placeholder = "6:00 PM",
+                                placeholder = "13:00",
+                                keyboardType = KeyboardType.Number,
                                 isError = timeError != null,
                                 onValueChange = {
-                                    time = it
+                                    time = VisitorDateTimeRules.formatTimeInput(it)
                                     timeError = null
                                     validationMessage = null
                                 }
@@ -198,6 +204,12 @@ fun AddVisitorScreen(
                             FieldError(timeError)
                         }
                     }
+                    Text(
+                        "Use 24-hour time, for example 13:00.",
+                        modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.height(10.dp))
                     VisitorOutlinedField(
                         label = "Note (optional)",
@@ -255,6 +267,91 @@ fun AddVisitorScreen(
                     }
                 )
             }
+        }
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val selectedMillis = datePickerState.selectedDateMillis
+                            ?: VisitorDateTimeRules.datePickerMillis(null)
+                        date = VisitorDateTimeRules.dateTextFromPickerMillis(selectedMillis)
+                        dateError = null
+                        validationMessage = null
+                        showDatePicker = false
+                    }
+                ) {
+                    Text("Use date")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("Cancel")
+                }
+            }
+        ) {
+            DatePicker(
+                state = datePickerState,
+                title = {
+                    Text(
+                        "Select visitor date",
+                        modifier = Modifier.padding(start = 24.dp, top = 16.dp)
+                    )
+                },
+                showModeToggle = false
+            )
+        }
+    }
+}
+
+@Composable
+private fun VisitorDatePickerField(
+    value: String,
+    isError: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isError) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.outline.copy(alpha = 0.65f)
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Date",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    value.ifBlank { "Choose date" },
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (value.isBlank()) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
+            Glyph(
+                type = GlyphType.CALENDAR,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

@@ -19,19 +19,61 @@ class VisitorDateTimeRulesTest {
     fun futureDateTimeIsAccepted() {
         val result = VisitorDateTimeRules.validate(
             dateText = "15/11/2026",
-            timeText = "6:00 PM",
+            timeText = "18:00",
             nowMillis = now,
             timeZone = timeZone
         )
 
         assertNotNull(result.isoValue)
-        assertEquals("15 Nov 2026 · 6:00 PM", result.displayValue)
+        assertEquals("15 Nov 2026 · 18:00", result.displayValue)
+    }
+
+    @Test
+    fun amPmTimeIsRejected() {
+        val result = VisitorDateTimeRules.validate(
+            dateText = "15/11/2026",
+            timeText = "1:00 PM",
+            nowMillis = now,
+            timeZone = timeZone
+        )
+
+        assertNull(result.isoValue)
+        assertEquals(
+            "Use 24-hour time such as 13:00.",
+            result.timeError
+        )
+    }
+
+    @Test
+    fun timeInputFormatsDigitsAs24HourTime() {
+        assertEquals("13:00", VisitorDateTimeRules.formatTimeInput("1300"))
+        assertEquals("18:30", VisitorDateTimeRules.formatTimeInput("18:30"))
     }
 
     @Test
     fun dateInputIsFormattedWhileTyping() {
         assertEquals("15/11/2026", VisitorDateTimeRules.formatDateInput("15112026"))
         assertEquals("15/11", VisitorDateTimeRules.formatDateInput("1511"))
+    }
+
+    @Test
+    fun calendarPickerKeepsTheSelectedLocalDate() {
+        val pickerMillis = VisitorDateTimeRules.datePickerMillis(
+            dateText = "15/11/2026",
+            nowMillis = now,
+            timeZone = timeZone
+        )
+        val utcDate = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            timeInMillis = pickerMillis
+        }
+
+        assertEquals(2026, utcDate.get(Calendar.YEAR))
+        assertEquals(Calendar.NOVEMBER, utcDate.get(Calendar.MONTH))
+        assertEquals(15, utcDate.get(Calendar.DAY_OF_MONTH))
+        assertEquals(
+            "15/11/2026",
+            VisitorDateTimeRules.dateTextFromPickerMillis(pickerMillis)
+        )
     }
 
     @Test

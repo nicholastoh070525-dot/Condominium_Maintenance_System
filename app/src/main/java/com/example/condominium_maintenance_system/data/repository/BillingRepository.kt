@@ -16,6 +16,7 @@ import com.example.condominium_maintenance_system.ui.ManagementBill
 import com.example.condominium_maintenance_system.ui.ManagementBillingSnapshot
 import com.example.condominium_maintenance_system.ui.PaymentRecord
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,9 +55,7 @@ class BillingRepository {
 
     suspend fun getManagementSnapshot(month: String): ManagementBillingSnapshot {
         val units = getBillableUnits()
-        val allBills = client.from("condotrack_bills")
-            .select()
-            .decodeList<BillRow>()
+        val allBills = getAllBillRows()
         val mappedBills = toManagementBills(allBills, units.associateBy { it.id })
         return ManagementBillingSnapshot(
             bills = mappedBills.filter { it.billingMonth == month },
@@ -87,14 +86,10 @@ class BillingRepository {
             .sortedWith(compareByDescending<ManagementBill> { it.billingMonth }.thenBy { it.unitCode })
 
     suspend fun getBillableUnits(): List<BillableUnit> {
-        val profiles = client.from("condotrack_profiles")
-            .select()
-            .decodeList<ProfileRow>()
+        val profiles = getAllProfileRows()
             .filter { it.unitId != null }
             .associateBy { it.unitId }
-        return client.from("condotrack_units")
-            .select()
-            .decodeList<UnitRow>()
+        return getAllUnitRows()
             .map { unit ->
                 BillableUnit(
                     id = unit.id,
@@ -119,9 +114,7 @@ class BillingRepository {
         require(amount > 0) { "Amount must be greater than zero." }
 
         val eligibleUnits = BillingRules.unitsForScope(getBillableUnits(), scope)
-        val existingUnitIds = client.from("condotrack_bills")
-            .select { filter { eq("billing_month", month) } }
-            .decodeList<BillRow>()
+        val existingUnitIds = getAllBillRows(month)
             .mapTo(mutableSetOf()) { it.unitId }
         val missingUnits = eligibleUnits.filterNot { it.id in existingUnitIds }
 
@@ -144,6 +137,29 @@ class BillingRepository {
             skipped = eligibleUnits.size - missingUnits.size,
             totalAmount = missingUnits.size * amount
         )
+    }
+
+    suspend fun deleteUnpaidBillsForMonth(month: String): Int {
+        require(month.matches(Regex("\\d{4}-\\d{2}-01"))) { "Choose a valid billing month." }
+        val unpaidBefore = getAllBillRows(month).count {
+            it.status.equals("UNPAID", ignoreCase = true)
+        }
+        if (unpaidBefore == 0) return 0
+
+        client.from("condotrack_bills").delete {
+            filter {
+                eq("billing_month", month)
+                eq("status", "UNPAID")
+            }
+        }
+
+        val unpaidAfter = getAllBillRows(month).count {
+            it.status.equals("UNPAID", ignoreCase = true)
+        }
+        check(unpaidAfter == 0) {
+            "The unpaid bills could not be deleted. Check management delete permissions."
+        }
+        return unpaidBefore
     }
 
     suspend fun payBill(bill: MaintenanceFee, method: String): PaymentRecord {
@@ -232,4 +248,60 @@ class BillingRepository {
         val suffix = UUID.randomUUID().toString().replace("-", "").take(6).uppercase(Locale.US)
         return "CT-$date-$suffix"
     }
+
+    private suspend fun getAllUnitRows(): List<UnitRow> {
+        val result = mutableListOf<UnitRow>()
+        var offset = 0L
+        while (true) {
+            val page = client.from("condotrack_units")
+                .select {
+                    order("id", Order.ASCENDING)
+                    range(offset, offset + PAGE_SIZE - 1)
+                }
+                .decodeList<UnitRow>()
+            result += page
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return result
+    }
+
+    private suspend fun getAllProfileRows(): List<ProfileRow> {
+        val result = mutableListOf<ProfileRow>()
+        var offset = 0L
+        while (true) {
+            val page = client.from("condotrack_profiles")
+                .select {
+                    order("id", Order.ASCENDING)
+                    range(offset, offset + PAGE_SIZE - 1)
+                }
+                .decodeList<ProfileRow>()
+            result += page
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return result
+    }
+
+    private suspend fun getAllBillRows(month: String? = null): List<BillRow> {
+        val result = mutableListOf<BillRow>()
+        var offset = 0L
+        while (true) {
+            val page = client.from("condotrack_bills")
+                .select {
+                    if (month != null) {
+                        filter { eq("billing_month", month) }
+                    }
+                    order("id", Order.ASCENDING)
+                    range(offset, offset + PAGE_SIZE - 1)
+                }
+                .decodeList<BillRow>()
+            result += page
+            if (page.size < PAGE_SIZE) break
+            offset += PAGE_SIZE
+        }
+        return result
+    }
 }
+
+private const val PAGE_SIZE = 1_000L

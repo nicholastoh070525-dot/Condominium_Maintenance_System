@@ -45,6 +45,7 @@ import com.example.condominium_maintenance_system.ui.components.EmptyStateCard
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.components.InfoBanner
+import com.example.condominium_maintenance_system.ui.components.LoadingCard
 import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.components.SectionTitle
 import com.example.condominium_maintenance_system.ui.screens.common.FormDialog
@@ -112,9 +113,7 @@ fun BillingScreen(
             if (selectedTab == BillingTab.CURRENT_BILL) {
                 if (loading && currentBill == null) {
                     item {
-                        Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                        LoadingCard("Loading your maintenance bill…")
                     }
                 } else if (currentBill == null) {
                     item {
@@ -194,9 +193,7 @@ fun BillingScreen(
             } else {
                 if (loading && payments.isEmpty()) {
                     item {
-                        Box(Modifier.fillMaxWidth().padding(36.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
+                        LoadingCard("Loading payment history…")
                     }
                 } else if (payments.isEmpty()) {
                     item {

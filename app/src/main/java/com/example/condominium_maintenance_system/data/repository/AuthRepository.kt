@@ -68,6 +68,23 @@ class AuthRepository {
 
     suspend fun currentEmail(): String? = auth.currentUserOrNull()?.email
 
+    suspend fun verifyCurrentAccountPassword(password: String): Result<Unit> = runCatching {
+        require(password.isNotBlank()) { "Enter your account password." }
+        val currentUser = auth.currentUserOrNull()
+            ?: error("Your account session has expired. Sign in again.")
+        val email = currentUser.email?.takeIf { it.isNotBlank() }
+            ?: error("Your account email could not be loaded.")
+
+        auth.signInWith(Email) {
+            this.email = email
+            this.password = password
+        }
+
+        check(auth.currentUserOrNull()?.id == currentUser.id) {
+            "The password did not verify the current account."
+        }
+    }
+
     suspend fun restoreSession(): Result<String?> = runCatching {
         auth.awaitInitialization()
         auth.currentUserOrNull()?.id

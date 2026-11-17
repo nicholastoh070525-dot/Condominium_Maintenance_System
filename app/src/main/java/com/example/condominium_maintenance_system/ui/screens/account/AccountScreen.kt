@@ -75,6 +75,7 @@ import com.example.condominium_maintenance_system.ui.components.EmptyStateCard
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.components.InfoBanner
+import com.example.condominium_maintenance_system.ui.components.LoadingCard
 import com.example.condominium_maintenance_system.ui.components.MetricCard
 import com.example.condominium_maintenance_system.ui.components.PillTone
 import com.example.condominium_maintenance_system.ui.components.SectionTitle
@@ -166,9 +167,7 @@ fun AccountScreen(
 
             if (loading && visitors.isEmpty() && profiles.isEmpty()) {
                 item {
-                    Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
+                    LoadingCard("Loading account details…")
                 }
             }
 

@@ -35,7 +35,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.FilterChip
@@ -79,6 +78,7 @@ import com.example.condominium_maintenance_system.ui.components.EmptyStateCard
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.components.InfoBanner
+import com.example.condominium_maintenance_system.ui.components.LoadingCard
 import com.example.condominium_maintenance_system.ui.components.PillTone
 import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.components.SectionTitle
@@ -205,17 +205,7 @@ fun RequestsScreen(
 
             if (loading && requests.isEmpty() && tasks.isEmpty()) {
                 item {
-                    CondoCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(10.dp))
-                            Text("Loading maintenance data…")
-                        }
-                    }
+                    LoadingCard("Loading maintenance data…")
                 }
             }
 
