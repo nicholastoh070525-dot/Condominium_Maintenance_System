@@ -164,14 +164,7 @@ fun BookingScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            item {
-                InfoBanner(
-                    title = "November availability",
-                    body = "Dots mark days that already have bookings. Approvals usually take less than one working day.",
-                    glyph = GlyphType.CALENDAR,
-                    badge = "Open"
-                )
-            }
+
             item {
                 SectionTitle("Choose a date")
                 Spacer(Modifier.height(10.dp))
