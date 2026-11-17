@@ -19,6 +19,7 @@ data class BookingUiState(
     val bookings: List<FacilityBooking> = emptyList(),
     val facilities: List<Facility> = emptyList(),
     val loading: Boolean = false,
+    val processingId: String? = null,
     val error: String? = null,
     val message: String? = null
 )
@@ -83,16 +84,27 @@ class BookingViewModel(
 
     fun updateStatus(booking: FacilityBooking, status: String) {
         viewModelScope.launch {
-            _state.update { it.copy(error = null) }
+            _state.update { it.copy(error = null, processingId = booking.id) }
             runCatching {
                 repository.updateStatus(booking.id, status)
                 repository.getAll()
             }
                 .onSuccess { list ->
-                    _state.update { it.copy(bookings = list, message = "Booking $status.") }
+                    _state.update {
+                        it.copy(
+                            bookings = list,
+                            processingId = null,
+                            message = "Booking $status."
+                        )
+                    }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(error = error.userMessage("Unable to update booking.")) }
+                    _state.update {
+                        it.copy(
+                            processingId = null,
+                            error = error.userMessage("Unable to update booking.")
+                        )
+                    }
                 }
         }
     }

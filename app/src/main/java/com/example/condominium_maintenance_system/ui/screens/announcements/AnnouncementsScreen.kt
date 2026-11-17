@@ -35,7 +35,6 @@ fun AnnouncementsScreen(
     var showPostDialog by remember { mutableStateOf(false) }
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M5",
             title = "Announcements",
             onBack = onBack,
             trailing = if (role == UserRole.MANAGEMENT) GlyphType.ADD else GlyphType.CHECK,

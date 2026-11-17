@@ -401,7 +401,6 @@ fun PrimaryActionButton(
 
 @Composable
 fun ModuleCard(
-    code: String,
     title: String,
     detail: String,
     symbol: String,
@@ -433,8 +432,6 @@ fun ModuleCard(
                 Text(text = "›", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleLarge)
             }
             Spacer(Modifier.height(12.dp))
-            Text(text = code, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(3.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
@@ -487,7 +484,7 @@ fun MetricCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(19.dp),
-        color = if (highlighted) BlueDeep else MaterialTheme.colorScheme.surface,
+        color = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
         border = if (highlighted) null else androidx.compose.foundation.BorderStroke(
             1.dp,
             MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
@@ -497,13 +494,15 @@ fun MetricCard(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = if (highlighted) Color(0xFFB8C8ED) else MaterialTheme.colorScheme.onSurfaceVariant
+                color = if (highlighted) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f)
+                else MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
-                color = if (highlighted) Color.White else MaterialTheme.colorScheme.onSurface
+                color = if (highlighted) MaterialTheme.colorScheme.onPrimary
+                else MaterialTheme.colorScheme.onSurface
             )
         }
     }

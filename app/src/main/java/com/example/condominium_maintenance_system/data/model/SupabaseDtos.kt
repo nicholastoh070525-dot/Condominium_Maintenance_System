@@ -55,6 +55,15 @@ data class BillRow(
 )
 
 @Serializable
+data class NewBillPayload(
+    @SerialName("unit_id") val unitId: String,
+    @SerialName("billing_month") val billingMonth: String,
+    val amount: Double,
+    @SerialName("due_date") val dueDate: String,
+    val status: String = "UNPAID"
+)
+
+@Serializable
 data class PaymentRow(
     val id: String,
     @SerialName("bill_id") val billId: String,

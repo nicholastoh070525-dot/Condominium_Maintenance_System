@@ -79,7 +79,7 @@ fun NewRequestScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        ScreenHeader(code = "M2", title = "New request", onBack = onBack)
+        ScreenHeader(title = "New request", onBack = onBack)
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

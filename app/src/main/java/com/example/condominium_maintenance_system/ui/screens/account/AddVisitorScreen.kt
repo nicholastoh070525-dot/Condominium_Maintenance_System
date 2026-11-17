@@ -63,7 +63,6 @@ fun AddVisitorScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M1",
             title = "Visitor parking",
             onBack = onBack,
             trailing = GlyphType.CALENDAR

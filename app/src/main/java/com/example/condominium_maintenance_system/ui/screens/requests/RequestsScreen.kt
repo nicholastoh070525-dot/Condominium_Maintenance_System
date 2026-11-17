@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -121,13 +122,15 @@ fun RequestsScreen(
     loading: Boolean,
     saving: Boolean,
     processingId: String?,
+    initialRequestId: String? = null,
     onBack: () -> Unit,
     onNewRequest: () -> Unit,
     onRefresh: () -> Unit,
     onUpdateRequest: (MaintenanceRequest, MaintenanceRequestUpdate) -> Unit,
     onDeleteRequest: (MaintenanceRequest) -> Unit,
     onCreateTask: (MaintenanceTaskDraft) -> Unit,
-    onUpdateTask: (MaintenanceTask, String, String?) -> Unit
+    onUpdateTask: (MaintenanceTask, String, String?) -> Unit,
+    onInitialRequestHandled: () -> Unit = {}
 ) {
     var managementTab by remember { mutableIntStateOf(0) }
     var requestFilter by remember { mutableStateOf("Open") }
@@ -137,6 +140,13 @@ fun RequestsScreen(
     var selectedPhotoUrl by remember { mutableStateOf<String?>(null) }
     var showCreateTask by remember { mutableStateOf(false) }
     var completeTask by remember { mutableStateOf<MaintenanceTask?>(null) }
+    LaunchedEffect(initialRequestId, requests) {
+        val target = initialRequestId?.let { id -> requests.firstOrNull { it.id == id } }
+        if (target != null) {
+            detailRequest = target
+            onInitialRequestHandled()
+        }
+    }
     val today = remember { Calendar.getInstance() }
     var calendarMonthOffset by remember { mutableIntStateOf(0) }
     var selectedDay by remember { mutableIntStateOf(today.get(Calendar.DAY_OF_MONTH)) }
@@ -165,7 +175,6 @@ fun RequestsScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M2",
             title = "Maintenance",
             onBack = onBack,
             trailing = if (role == UserRole.RESIDENT) GlyphType.ADD else GlyphType.CALENDAR,

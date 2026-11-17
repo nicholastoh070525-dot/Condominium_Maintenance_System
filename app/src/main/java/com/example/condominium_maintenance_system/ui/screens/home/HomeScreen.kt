@@ -61,7 +61,6 @@ fun HomeScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 modules.chunked(2)[rowIndex].forEach { item ->
                     ModuleCard(
-                        code = item.code,
                         title = item.title,
                         detail = item.detail,
                         symbol = item.symbol,
@@ -216,7 +215,6 @@ private fun ManagementHero() {
 }
 
 private data class ModuleItem(
-    val code: String,
     val title: String,
     val detail: String,
     val symbol: String,
@@ -227,12 +225,12 @@ private data class ModuleItem(
 
 private fun moduleItems(role: UserRole): List<ModuleItem> {
     val items = listOf(
-        ModuleItem("MODULE 1", "Users & access", "Profile · visitors · roles", "◎", Purple, PurplePale, AppDestination.ACCESS),
-        ModuleItem("MODULE 2", "Maintenance", "Requests · work · schedule", "✦", Color(0xFFA05D49), CoralPale, AppDestination.MAINTENANCE),
-        ModuleItem("MODULE 3", "Facility booking", "Availability · approvals", "▣", BluePrimary, BluePale, AppDestination.BOOKINGS),
-        ModuleItem("MODULE 4", "Lost & found", "Lost · found · claimed", "⌕", Color(0xFF8B6C32), GoldPale, AppDestination.LOST_FOUND),
-        ModuleItem("MODULE 5", "Announcements", "Notices · notifications", "◖", BluePrimary, BluePale, AppDestination.ANNOUNCEMENTS),
-        ModuleItem("MODULE 6", "Billing", "Maintenance fee · pay online", "▤", Color(0xFF3E5FBF), Color(0xFFE8EDFF), AppDestination.BILLING)
+        ModuleItem("Users & access", "Profile · visitors · roles", "◎", Purple, PurplePale, AppDestination.ACCESS),
+        ModuleItem("Maintenance", "Requests · work · schedule", "✦", Color(0xFFA05D49), CoralPale, AppDestination.MAINTENANCE),
+        ModuleItem("Facility booking", "Availability · approvals", "▣", BluePrimary, BluePale, AppDestination.BOOKINGS),
+        ModuleItem("Lost & found", "Lost · found · claimed", "⌕", Color(0xFF8B6C32), GoldPale, AppDestination.LOST_FOUND),
+        ModuleItem("Announcements", "Notices · notifications", "◖", BluePrimary, BluePale, AppDestination.ANNOUNCEMENTS),
+        ModuleItem("Billing", "Maintenance fee · pay online", "▤", Color(0xFF3E5FBF), Color(0xFFE8EDFF), AppDestination.BILLING)
     )
     return if (role == UserRole.RESIDENT) items else items.dropLast(1)
 }

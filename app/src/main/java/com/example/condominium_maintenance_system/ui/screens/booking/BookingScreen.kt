@@ -137,7 +137,6 @@ fun BookingScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M3",
             title = "Facility booking",
             onBack = onBack,
             trailing = GlyphType.CALENDAR,

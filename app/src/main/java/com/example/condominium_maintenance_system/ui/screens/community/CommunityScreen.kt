@@ -39,7 +39,6 @@ fun CommunityScreen(
     }
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M4",
             title = "Lost & found",
             onBack = onBack,
             trailing = GlyphType.ADD,

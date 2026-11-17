@@ -71,7 +71,6 @@ fun BillingScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M6",
             title = "Billing",
             onBack = onBack,
             trailing = GlyphType.CARD,

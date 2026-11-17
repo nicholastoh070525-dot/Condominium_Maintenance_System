@@ -22,7 +22,6 @@ import com.example.condominium_maintenance_system.ui.theme.*
 
 @Composable
 fun ScreenHeader(
-    code: String?,
     title: String,
     onBack: () -> Unit,
     trailing: GlyphType = GlyphType.WORK,
@@ -48,16 +47,6 @@ fun ScreenHeader(
             }
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            if (code != null) {
-                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Text(
-                        code,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
         if (onTrailing != null) {

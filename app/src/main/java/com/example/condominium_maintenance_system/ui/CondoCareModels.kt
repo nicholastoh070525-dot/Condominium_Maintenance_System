@@ -22,6 +22,10 @@ enum class AppDestination {
     LOST_FOUND,
     ANNOUNCEMENTS,
     BILLING,
+    USER_DIRECTORY,
+    PENDING_ACTIONS,
+    APPROVED_OUTCOMES,
+    CREATE_BILLS,
     NEW_REQUEST,
     ADD_VISITOR,
     SETTINGS,
@@ -177,6 +181,55 @@ data class MaintenanceFee(
     val dueDate: String,
     val paidDate: String? = null,
     val status: String = if (paidDate == null) "UNPAID" else "PAID"
+)
+
+enum class BillingScopeMode {
+    ALL,
+    BLOCK,
+    FLOOR_RANGE
+}
+
+data class BillingScope(
+    val mode: BillingScopeMode,
+    val block: String? = null,
+    val startFloor: Int? = null,
+    val endFloor: Int? = null
+)
+
+data class BillableUnit(
+    val id: String,
+    val block: String,
+    val floor: Int,
+    val room: Int,
+    val unitCode: String,
+    val residentName: String = ""
+)
+
+data class ManagementBill(
+    val id: String,
+    val unitId: String,
+    val unitCode: String,
+    val residentName: String,
+    val billingMonth: String,
+    val amount: Double,
+    val dueDate: String,
+    val status: String,
+    val paidAt: String? = null
+) {
+    val reference: String
+        get() = "BILL-${id.take(8).uppercase()}"
+}
+
+data class BillIssueResult(
+    val issued: Int,
+    val skipped: Int,
+    val totalAmount: Double
+)
+
+data class ManagementBillingSnapshot(
+    val bills: List<ManagementBill>,
+    val units: List<BillableUnit>,
+    val paidBills: List<ManagementBill>
 )
 
 data class UserProfile(

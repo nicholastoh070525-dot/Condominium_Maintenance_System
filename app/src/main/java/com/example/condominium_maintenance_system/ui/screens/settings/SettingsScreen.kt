@@ -43,7 +43,6 @@ fun SettingsScreen(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = null,
             title = "Settings",
             onBack = onBack
         )

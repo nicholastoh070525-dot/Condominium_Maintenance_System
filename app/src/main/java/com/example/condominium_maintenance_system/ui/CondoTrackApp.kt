@@ -27,6 +27,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,14 +38,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.condominium_maintenance_system.data.model.ManagementOverviewRules
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
 import com.example.condominium_maintenance_system.ui.screens.account.AccountScreen
 import com.example.condominium_maintenance_system.ui.screens.account.AddVisitorScreen
+import com.example.condominium_maintenance_system.ui.screens.account.ApprovedOutcomesScreen
 import com.example.condominium_maintenance_system.ui.screens.account.EditProfileScreen
+import com.example.condominium_maintenance_system.ui.screens.account.PendingActionsScreen
+import com.example.condominium_maintenance_system.ui.screens.account.UserDirectoryScreen
 import com.example.condominium_maintenance_system.ui.screens.announcements.AnnouncementsScreen
 import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
+import com.example.condominium_maintenance_system.ui.screens.billing.CreateBillsScreen
+import com.example.condominium_maintenance_system.ui.screens.billing.ManagementBillingScreen
 import com.example.condominium_maintenance_system.ui.screens.booking.BookingScreen
 import com.example.condominium_maintenance_system.ui.screens.community.CommunityScreen
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
@@ -58,6 +65,7 @@ import com.example.condominium_maintenance_system.ui.viewmodel.AuthViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.BillingViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.BookingViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.MaintenanceViewModel
+import com.example.condominium_maintenance_system.ui.viewmodel.ManagementBillingViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.ProfileViewModel
 import com.example.condominium_maintenance_system.ui.viewmodel.VisitorViewModel
 import kotlinx.coroutines.launch
@@ -118,18 +126,29 @@ private fun AuthenticatedCondoTrack(
     val billingViewModel: BillingViewModel = viewModel(key = "billing:${signedInProfile.id}")
     val bookingViewModel: BookingViewModel = viewModel(key = "booking:${signedInProfile.id}")
     val maintenanceViewModel: MaintenanceViewModel = viewModel(key = "maintenance:${signedInProfile.id}")
+    val managementBillingViewModel: ManagementBillingViewModel =
+        viewModel(key = "management-billing:${signedInProfile.id}")
 
     val profileState by profileViewModel.state.collectAsState()
     val visitorState by visitorViewModel.state.collectAsState()
     val billingState by billingViewModel.state.collectAsState()
     val bookingState by bookingViewModel.state.collectAsState()
     val maintenanceState by maintenanceViewModel.state.collectAsState()
+    val managementBillingState by managementBillingViewModel.state.collectAsState()
     val currentProfile = profileState.profile
         ?.takeIf { it.id == signedInProfile.id }
         ?: signedInProfile
     val role = signedInProfile.role
 
-    var destination by remember { mutableStateOf(AppDestination.HOME) }
+    var destination by rememberSaveable(signedInProfile.id) {
+        mutableStateOf(
+            if (role == UserRole.MANAGEMENT) AppDestination.MAINTENANCE
+            else AppDestination.HOME
+        )
+    }
+    var focusedMaintenanceRequestId by rememberSaveable(signedInProfile.id) {
+        mutableStateOf<String?>(null)
+    }
     var showRequestSubmitted by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -166,6 +185,8 @@ private fun AuthenticatedCondoTrack(
         maintenanceViewModel.load(role, signedInProfile.id, currentProfile.unitCode)
         if (role == UserRole.RESIDENT && currentProfile.unitId != null) {
             billingViewModel.load(currentProfile.unitId)
+        } else if (role == UserRole.MANAGEMENT) {
+            managementBillingViewModel.load()
         }
     }
 
@@ -190,11 +211,39 @@ private fun AuthenticatedCondoTrack(
             maintenanceViewModel.clearFeedback()
         }
     }
+    LaunchedEffect(managementBillingState.message, managementBillingState.error) {
+        (managementBillingState.error ?: managementBillingState.message)?.let {
+            showMessage(it)
+            managementBillingViewModel.clearFeedback()
+        }
+    }
+    LaunchedEffect(destination, role) {
+        if (role == UserRole.MANAGEMENT &&
+            destination in setOf(AppDestination.BILLING, AppDestination.APPROVED_OUTCOMES)
+        ) {
+            managementBillingViewModel.load()
+        }
+    }
 
     fun navigate(next: AppDestination) {
-        if (next == AppDestination.BILLING && role != UserRole.RESIDENT) return
-        destination = next
+        destination = if (role == UserRole.MANAGEMENT && next == AppDestination.HOME) {
+            AppDestination.MAINTENANCE
+        } else {
+            next
+        }
     }
+
+    val pendingActionCount = ManagementOverviewRules.pendingCount(
+        visitors = visitorState.requests,
+        bookings = bookingState.bookings,
+        maintenance = maintenanceState.requests
+    )
+    val approvedOutcomeCount = ManagementOverviewRules.completedCount(
+        visitors = visitorState.requests,
+        bookings = bookingState.bookings,
+        maintenance = maintenanceState.requests,
+        paidBills = managementBillingState.paidBills
+    )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -205,7 +254,11 @@ private fun AuthenticatedCondoTrack(
                     AppDestination.NEW_REQUEST,
                     AppDestination.ADD_VISITOR,
                     AppDestination.SETTINGS,
-                    AppDestination.EDIT_PROFILE
+                    AppDestination.EDIT_PROFILE,
+                    AppDestination.USER_DIRECTORY,
+                    AppDestination.PENDING_ACTIONS,
+                    AppDestination.APPROVED_OUTCOMES,
+                    AppDestination.CREATE_BILLS
                 )
             ) {
                 CondoBottomNavigation(
@@ -230,7 +283,13 @@ private fun AuthenticatedCondoTrack(
                     )
                 )
         ) {
-            val goHome = { destination = AppDestination.HOME }
+            val goRoot = {
+                destination = if (role == UserRole.MANAGEMENT) {
+                    AppDestination.MAINTENANCE
+                } else {
+                    AppDestination.HOME
+                }
+            }
             when (destination) {
                 AppDestination.HOME -> HomeScreen(
                     role = role,
@@ -253,11 +312,16 @@ private fun AuthenticatedCondoTrack(
                     unpaidBillCount = billingState.bills.count {
                         it.status.equals("UNPAID", ignoreCase = true)
                     },
-                    onBack = goHome,
+                    pendingActionCount = pendingActionCount,
+                    approvedOutcomeCount = approvedOutcomeCount,
+                    onBack = goRoot,
                     onOpenBilling = { navigate(AppDestination.BILLING) },
                     onOpenAnnouncements = { navigate(AppDestination.ANNOUNCEMENTS) },
                     onOpenFacilityBooking = { navigate(AppDestination.BOOKINGS) },
                     onOpenSettings = { navigate(AppDestination.SETTINGS) },
+                    onOpenUserDirectory = { navigate(AppDestination.USER_DIRECTORY) },
+                    onOpenPendingActions = { navigate(AppDestination.PENDING_ACTIONS) },
+                    onOpenApprovedOutcomes = { navigate(AppDestination.APPROVED_OUTCOMES) },
                     onOpenVisitorForm = { navigate(AppDestination.ADD_VISITOR) },
                     onReviewVisitor = { visitor, status ->
                         visitorViewModel.review(visitor, status, role, currentProfile.id)
@@ -302,7 +366,8 @@ private fun AuthenticatedCondoTrack(
                     loading = maintenanceState.loading,
                     saving = maintenanceState.saving,
                     processingId = maintenanceState.processingId,
-                    onBack = goHome,
+                    initialRequestId = focusedMaintenanceRequestId,
+                    onBack = goRoot,
                     onNewRequest = { navigate(AppDestination.NEW_REQUEST) },
                     onRefresh = maintenanceViewModel::refresh,
                     onUpdateRequest = maintenanceViewModel::updateRequest,
@@ -317,7 +382,8 @@ private fun AuthenticatedCondoTrack(
                             status = status,
                             report = report
                         )
-                    }
+                    },
+                    onInitialRequestHandled = { focusedMaintenanceRequestId = null }
                 )
 
                 AppDestination.BOOKINGS -> BookingScreen(
@@ -325,7 +391,7 @@ private fun AuthenticatedCondoTrack(
                     residentUnit = currentProfile.unitCode ?: "",
                     bookings = bookingState.bookings,
                     facilities = bookingState.facilities,
-                    onBack = goHome,
+                    onBack = goRoot,
                     onAddBooking = { bookingViewModel.add(currentProfile, it) },
                     onBookingAction = { target, status -> bookingViewModel.updateStatus(target, status) },
                     onAddFacility = { name, symbol -> bookingViewModel.addFacility(name, symbol) },
@@ -336,7 +402,7 @@ private fun AuthenticatedCondoTrack(
                 AppDestination.LOST_FOUND -> CommunityScreen(
                     role = role,
                     items = lostItems,
-                    onBack = goHome,
+                    onBack = goRoot,
                     onAddItem = { lostItems.add(0, it) },
                     onItemAction = { target, status ->
                         val index = lostItems.indexOf(target)
@@ -348,7 +414,7 @@ private fun AuthenticatedCondoTrack(
                 AppDestination.ANNOUNCEMENTS -> AnnouncementsScreen(
                     role = role,
                     notices = notices,
-                    onBack = goHome,
+                    onBack = goRoot,
                     onAddNotice = { notices.add(0, it) },
                     onMarkRead = {
                         notices.indices.forEach { index ->
@@ -365,15 +431,75 @@ private fun AuthenticatedCondoTrack(
                             payments = billingState.payments,
                             loading = billingState.loading,
                             paying = billingState.paying,
-                            onBack = goHome,
+                            onBack = goRoot,
                             onPay = { bill, method ->
                                 currentProfile.unitId?.let { unitId ->
                                     billingViewModel.pay(bill, unitId, method)
                                 }
                             }
                         )
+                    } else {
+                        ManagementBillingScreen(
+                            bills = managementBillingState.bills,
+                            monthLabel = managementBillingState.monthLabel,
+                            loading = managementBillingState.loading,
+                            onBack = goRoot,
+                            onCreateBills = { navigate(AppDestination.CREATE_BILLS) },
+                            onPreviousMonth = { managementBillingViewModel.changeMonth(-1) },
+                            onNextMonth = { managementBillingViewModel.changeMonth(1) }
+                        )
                     }
                 }
+
+                AppDestination.USER_DIRECTORY -> UserDirectoryScreen(
+                    profiles = profileState.profiles,
+                    onBack = { navigate(AppDestination.ACCESS) }
+                )
+
+                AppDestination.PENDING_ACTIONS -> PendingActionsScreen(
+                    visitors = visitorState.requests,
+                    bookings = bookingState.bookings,
+                    maintenanceRequests = maintenanceState.requests,
+                    visitorProcessingId = visitorState.processingId,
+                    maintenanceProcessingId = maintenanceState.processingId,
+                    bookingProcessingId = bookingState.processingId,
+                    onBack = { navigate(AppDestination.ACCESS) },
+                    onVisitorDecision = { visitor, status ->
+                        visitorViewModel.review(visitor, status, role, currentProfile.id)
+                    },
+                    onBookingDecision = { booking, status ->
+                        bookingViewModel.updateStatus(booking, status)
+                    },
+                    onReviewMaintenance = { request ->
+                        focusedMaintenanceRequestId = request.id
+                        navigate(AppDestination.MAINTENANCE)
+                    }
+                )
+
+                AppDestination.APPROVED_OUTCOMES -> ApprovedOutcomesScreen(
+                    visitors = visitorState.requests,
+                    bookings = bookingState.bookings,
+                    maintenanceRequests = maintenanceState.requests,
+                    bills = managementBillingState.paidBills,
+                    onBack = { navigate(AppDestination.ACCESS) }
+                )
+
+                AppDestination.CREATE_BILLS -> CreateBillsScreen(
+                    monthLabel = managementBillingState.monthLabel,
+                    units = managementBillingState.units,
+                    existingBills = managementBillingState.bills,
+                    saving = managementBillingState.saving,
+                    onBack = { navigate(AppDestination.BILLING) },
+                    onIssue = { scope, amount, dueDate ->
+                        managementBillingViewModel.issueBills(
+                            scope = scope,
+                            amountText = amount,
+                            dueDateText = dueDate
+                        ) {
+                            navigate(AppDestination.BILLING)
+                        }
+                    }
+                )
 
                 AppDestination.NEW_REQUEST -> NewRequestScreen(
                     onBack = { navigate(AppDestination.MAINTENANCE) },
@@ -455,10 +581,10 @@ private fun CondoBottomNavigation(
         )
 
         UserRole.MANAGEMENT -> listOf(
-            NavItem(AppDestination.HOME, "Overview") to GlyphType.HOME,
             NavItem(AppDestination.MAINTENANCE, "Work") to GlyphType.WORK,
-            NavItem(AppDestination.ANNOUNCEMENTS, "Notices") to GlyphType.BELL,
-            NavItem(AppDestination.BOOKINGS, "Bookings") to GlyphType.CALENDAR,
+            NavItem(AppDestination.BOOKINGS, "Booking") to GlyphType.CALENDAR,
+            NavItem(AppDestination.ANNOUNCEMENTS, "Notice") to GlyphType.BELL,
+            NavItem(AppDestination.BILLING, "Bills") to GlyphType.CARD,
             NavItem(AppDestination.ACCESS, "Profile") to GlyphType.ACCOUNT
         )
     }

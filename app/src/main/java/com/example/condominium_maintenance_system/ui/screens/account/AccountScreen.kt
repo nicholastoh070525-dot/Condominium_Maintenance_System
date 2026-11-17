@@ -111,11 +111,16 @@ fun AccountScreen(
     processingId: String?,
     activePass: VisitorRequest?,
     unpaidBillCount: Int = 0,
+    pendingActionCount: Int = 0,
+    approvedOutcomeCount: Int = 0,
     onBack: () -> Unit,
     onOpenBilling: () -> Unit = {},
     onOpenAnnouncements: () -> Unit = {},
     onOpenFacilityBooking: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenUserDirectory: () -> Unit = {},
+    onOpenPendingActions: () -> Unit = {},
+    onOpenApprovedOutcomes: () -> Unit = {},
     onOpenVisitorForm: () -> Unit,
     onReviewVisitor: (VisitorRequest, String) -> Unit,
     onOpenPass: (VisitorRequest) -> Unit,
@@ -127,7 +132,6 @@ fun AccountScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = "M1",
             title = "Profile",
             onBack = onBack,
             trailing = GlyphType.SETTINGS,
@@ -149,7 +153,7 @@ fun AccountScreen(
                     if (role == UserRole.RESIDENT) {
                         "Manage your profile and the people visiting your unit."
                     } else {
-                        "Review resident accounts and manage visitor approvals."
+                        "Review users, manage pending actions and inspect completed outcomes."
                     },
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -247,46 +251,33 @@ fun AccountScreen(
                 }
             } else {
                 item {
+                    SectionTitle("User directory")
+                }
+                item {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MetricCard("Users", profiles.size.toString(), Modifier.weight(1f), highlighted = true)
-                        MetricCard("Pending", visitors.count { it.status == "PENDING" }.toString(), Modifier.weight(1f))
-                        MetricCard("Approved", visitors.count { it.status == "APPROVED" }.toString(), Modifier.weight(1f))
+                        MetricCard(
+                            "Users",
+                            profiles.size.toString(),
+                            Modifier
+                                .weight(1f)
+                                .clickable(onClick = onOpenUserDirectory),
+                            highlighted = true
+                        )
+                        MetricCard(
+                            "Pending",
+                            pendingActionCount.toString(),
+                            Modifier
+                                .weight(1f)
+                                .clickable(onClick = onOpenPendingActions)
+                        )
+                        MetricCard(
+                            "Approved",
+                            approvedOutcomeCount.toString(),
+                            Modifier
+                                .weight(1f)
+                                .clickable(onClick = onOpenApprovedOutcomes)
+                        )
                     }
-                }
-                item {
-                    SectionTitle("Visitor approvals")
-                }
-                val pending = visitors.filter { it.status.equals("PENDING", ignoreCase = true) }
-                if (pending.isEmpty() && !loading) {
-                    item {
-                        EmptyStateCard("No pending requests", "New visitor requests will appear here.")
-                    }
-                }
-                items(pending, key = { it.id }) { visitor ->
-                    PendingVisitorCard(
-                        visitor = visitor,
-                        processing = processingId == visitor.id,
-                        onApprove = { visitorAction = visitor to "APPROVED" },
-                        onReject = { visitorAction = visitor to "REJECTED" }
-                    )
-                }
-                item {
-                    SectionTitle("Approved and completed", action = "Requests")
-                }
-                items(
-                    visitors.filter {
-                        it.status.equals("APPROVED", true) || it.status.equals("COMPLETE", true) ||
-                            it.status.equals("REJECTED", true)
-                    },
-                    key = { it.id }
-                ) { visitor ->
-                    ManagementVisitorRow(visitor)
-                }
-                item {
-                    SectionTitle("User directory", action = "Always active")
-                }
-                items(profiles, key = { it.id }) { user ->
-                    DirectoryUserCard(user)
                 }
             }
 
@@ -739,7 +730,6 @@ fun EditProfileScreen(
 
     Column(modifier = Modifier.fillMaxSize()) {
         ScreenHeader(
-            code = null,
             title = "Edit Profile",
             onBack = onBack
         )
