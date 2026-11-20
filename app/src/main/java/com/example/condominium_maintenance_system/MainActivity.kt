@@ -124,9 +124,9 @@ fun BillingPreview() {
                 bills = listOf(
                     MaintenanceFee(
                         id = "preview",
-                        month = "November 2026",
+                        month = "2026-11-01",
                         amount = "RM 285.00",
-                        dueDate = "15 Nov 2026",
+                        dueDate = "2026-11-15",
                         status = "UNPAID"
                     )
                 ),
@@ -136,13 +136,17 @@ fun BillingPreview() {
                         amount = "RM 285.00",
                         method = "DuitNow",
                         paidAt = "2026-10-12T10:30:00",
-                        receiptNumber = "CT-20261012-001"
+                        receiptNumber = "CT-20261012-001",
+                        billId = "preview-bill"
                     )
                 ),
                 loading = false,
                 paying = false,
-                onBack = {},
-                onPay = { _, _ -> }
+                selectedBillId = "preview",
+                onBillSelected = {},
+                onContinuePayment = {},
+                onOpenReceipt = {},
+                onBack = {}
             )
         }
     }

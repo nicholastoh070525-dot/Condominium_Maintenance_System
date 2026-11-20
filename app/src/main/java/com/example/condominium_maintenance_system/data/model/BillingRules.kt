@@ -9,6 +9,37 @@ import java.util.Calendar
 import java.util.Locale
 
 object BillingRules {
+    data class PaymentMethod(
+        val name: String,
+        val description: String
+    )
+
+    val paymentMethods = listOf(
+        PaymentMethod(
+            name = "DuitNow",
+            description = "Instant bank transfer using your DuitNow ID."
+        ),
+        PaymentMethod(
+            name = "Maybank",
+            description = "Pay using Maybank online banking."
+        ),
+        PaymentMethod(
+            name = "RHB Bank",
+            description = "Pay using RHB online banking."
+        ),
+        PaymentMethod(
+            name = "Hong Leong Bank",
+            description = "Pay using Hong Leong Connect."
+        ),
+        PaymentMethod(
+            name = "FPX online banking",
+            description = "Pay through your bank's FPX portal."
+        )
+    )
+
+    fun isSupportedPaymentMethod(method: String): Boolean =
+        paymentMethods.any { it.name == method }
+
     fun deletableBillsForMonth(
         bills: List<ManagementBill>,
         month: String
@@ -33,6 +64,11 @@ object BillingRules {
                 }
             }
         }
+
+    fun registeredUnits(
+        units: List<BillableUnit>,
+        registeredUnitIds: Set<String>
+    ): List<BillableUnit> = units.filter { it.id in registeredUnitIds }
 
     fun effectiveStatus(bill: ManagementBill, today: String): String {
         if (bill.status.equals("PAID", ignoreCase = true)) return "PAID"

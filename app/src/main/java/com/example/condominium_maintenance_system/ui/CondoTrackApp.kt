@@ -38,6 +38,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.condominium_maintenance_system.data.model.BillingRules
+import com.example.condominium_maintenance_system.data.model.BillingSelectionRules
 import com.example.condominium_maintenance_system.data.model.ManagementOverviewRules
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
@@ -47,11 +49,15 @@ import com.example.condominium_maintenance_system.ui.screens.account.ApprovedOut
 import com.example.condominium_maintenance_system.ui.screens.account.EditProfileScreen
 import com.example.condominium_maintenance_system.ui.screens.account.PendingActionsScreen
 import com.example.condominium_maintenance_system.ui.screens.account.UserDirectoryScreen
+import com.example.condominium_maintenance_system.ui.screens.account.VisitorDetailScreen
 import com.example.condominium_maintenance_system.ui.screens.announcements.AnnouncementsScreen
 import com.example.condominium_maintenance_system.ui.screens.auth.AuthScreen
+import com.example.condominium_maintenance_system.ui.screens.billing.BillCheckoutScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.BillingScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.CreateBillsScreen
 import com.example.condominium_maintenance_system.ui.screens.billing.ManagementBillingScreen
+import com.example.condominium_maintenance_system.ui.screens.billing.PaymentReviewScreen
+import com.example.condominium_maintenance_system.ui.screens.billing.PaymentReceiptScreen
 import com.example.condominium_maintenance_system.ui.screens.booking.BookingScreen
 import com.example.condominium_maintenance_system.ui.screens.community.CommunityScreen
 import com.example.condominium_maintenance_system.ui.screens.home.HomeScreen
@@ -149,6 +155,18 @@ private fun AuthenticatedCondoTrack(
     var focusedMaintenanceRequestId by rememberSaveable(signedInProfile.id) {
         mutableStateOf<String?>(null)
     }
+    var focusedVisitorId by rememberSaveable(signedInProfile.id) {
+        mutableStateOf<String?>(null)
+    }
+    var selectedBillId by rememberSaveable(signedInProfile.id) {
+        mutableStateOf<String?>(null)
+    }
+    var selectedPaymentMethod by rememberSaveable(signedInProfile.id) {
+        mutableStateOf("")
+    }
+    var selectedReceiptNumber by rememberSaveable(signedInProfile.id) {
+        mutableStateOf<String?>(null)
+    }
     var showRequestSubmitted by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -225,6 +243,18 @@ private fun AuthenticatedCondoTrack(
         }
     }
 
+    LaunchedEffect(signedInProfile.id, billingState.bills) {
+        if (role == UserRole.RESIDENT) {
+            val outstanding = BillingSelectionRules.outstandingBills(
+                billingState.bills,
+                BillingRules.todayIso()
+            )
+            val current = selectedBillId
+            val stillValid = current != null && outstanding.any { it.id == current }
+            selectedBillId = if (stillValid) current else BillingSelectionRules.initialSelection(outstanding)
+        }
+    }
+
     fun navigate(next: AppDestination) {
         destination = if (role == UserRole.MANAGEMENT && next == AppDestination.HOME) {
             AppDestination.MAINTENANCE
@@ -258,7 +288,11 @@ private fun AuthenticatedCondoTrack(
                     AppDestination.USER_DIRECTORY,
                     AppDestination.PENDING_ACTIONS,
                     AppDestination.APPROVED_OUTCOMES,
-                    AppDestination.CREATE_BILLS
+                    AppDestination.CREATE_BILLS,
+                    AppDestination.VISITOR_DETAIL,
+                    AppDestination.BILL_CHECKOUT,
+                    AppDestination.BILL_PAYMENT_REVIEW,
+                    AppDestination.BILL_RECEIPT
                 )
             ) {
                 CondoBottomNavigation(
@@ -327,6 +361,10 @@ private fun AuthenticatedCondoTrack(
                         visitorViewModel.review(visitor, status, role, currentProfile.id)
                     },
                     onOpenPass = { visitor -> visitorViewModel.openPass(visitor, currentProfile.id) },
+                    onOpenVisitorDetail = { visitor ->
+                        focusedVisitorId = visitor.id
+                        navigate(AppDestination.VISITOR_DETAIL)
+                    },
                     onClosePass = visitorViewModel::closePass,
                     onSignOut = onSignedOut
                 )
@@ -431,12 +469,14 @@ private fun AuthenticatedCondoTrack(
                             payments = billingState.payments,
                             loading = billingState.loading,
                             paying = billingState.paying,
-                            onBack = goRoot,
-                            onPay = { bill, method ->
-                                currentProfile.unitId?.let { unitId ->
-                                    billingViewModel.pay(bill, unitId, method)
-                                }
-                            }
+                            selectedBillId = selectedBillId,
+                            onBillSelected = { selectedBillId = it },
+                            onContinuePayment = { navigate(AppDestination.BILL_CHECKOUT) },
+                            onOpenReceipt = { payment ->
+                                selectedReceiptNumber = payment.receiptNumber
+                                navigate(AppDestination.BILL_RECEIPT)
+                            },
+                            onBack = goRoot
                         )
                     } else {
                         ManagementBillingScreen(
@@ -453,6 +493,77 @@ private fun AuthenticatedCondoTrack(
                             onPreviousMonth = { managementBillingViewModel.changeMonth(-1) },
                             onNextMonth = { managementBillingViewModel.changeMonth(1) }
                         )
+                    }
+                }
+
+                AppDestination.BILL_CHECKOUT -> {
+                    val unitId = currentProfile.unitId
+                    val bill = billingState.bills.firstOrNull {
+                        it.id == selectedBillId && !it.status.equals("PAID", ignoreCase = true)
+                    }
+                    if (bill != null && unitId != null) {
+                        BillCheckoutScreen(
+                            bill = bill,
+                            unitCode = currentProfile.unitCode ?: "",
+                            selectedMethod = selectedPaymentMethod,
+                            paying = billingState.paying,
+                            onBack = { navigate(AppDestination.BILLING) },
+                            onMethodSelected = { selectedPaymentMethod = it },
+                            onConfirm = { navigate(AppDestination.BILL_PAYMENT_REVIEW) }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navigate(AppDestination.BILLING) }
+                    }
+                }
+
+                AppDestination.BILL_PAYMENT_REVIEW -> {
+                    val unitId = currentProfile.unitId
+                    val bill = billingState.bills.firstOrNull {
+                        it.id == selectedBillId && !it.status.equals("PAID", ignoreCase = true)
+                    }
+                    if (bill != null &&
+                        unitId != null &&
+                        BillingRules.isSupportedPaymentMethod(selectedPaymentMethod)
+                    ) {
+                        PaymentReviewScreen(
+                            bill = bill,
+                            unitCode = currentProfile.unitCode ?: "",
+                            paymentMethod = selectedPaymentMethod,
+                            processing = billingState.paying,
+                            onBack = { navigate(AppDestination.BILL_CHECKOUT) },
+                            onProcessPayment = {
+                                billingViewModel.pay(
+                                    bill = bill,
+                                    unitId = unitId,
+                                    method = selectedPaymentMethod
+                                ) { payment ->
+                                    selectedReceiptNumber = payment.receiptNumber
+                                    navigate(AppDestination.BILL_RECEIPT)
+                                }
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navigate(AppDestination.BILL_CHECKOUT) }
+                    }
+                }
+
+                AppDestination.BILL_RECEIPT -> {
+                    val payment = billingState.payments.firstOrNull {
+                        it.receiptNumber == selectedReceiptNumber
+                    }
+                    val bill = payment?.let { p ->
+                        billingState.bills.firstOrNull { it.id == p.billId }
+                    }
+                    if (payment != null && bill != null) {
+                        PaymentReceiptScreen(
+                            payment = payment,
+                            bill = bill,
+                            unitCode = currentProfile.unitCode ?: "",
+                            onBackToBills = { navigate(AppDestination.BILLING) },
+                            onBackHome = goRoot
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navigate(AppDestination.BILLING) }
                     }
                 }
 
@@ -498,9 +609,11 @@ private fun AuthenticatedCondoTrack(
                     saving = managementBillingState.saving,
                     onBack = { navigate(AppDestination.BILLING) },
                     onMonthSelected = managementBillingViewModel::selectMonth,
-                    onIssue = { scope, amount, dueDate ->
+                    onIssue = { amount, dueDate ->
                         managementBillingViewModel.issueBills(
-                            scope = scope,
+                            scope = com.example.condominium_maintenance_system.ui.BillingScope(
+                                mode = com.example.condominium_maintenance_system.ui.BillingScopeMode.ALL
+                            ),
                             amountText = amount,
                             dueDateText = dueDate
                         ) {
@@ -539,6 +652,21 @@ private fun AuthenticatedCondoTrack(
                         }
                     }
                 )
+
+                AppDestination.VISITOR_DETAIL -> {
+                    val visitor = visitorState.requests.firstOrNull { it.id == focusedVisitorId }
+                    if (visitor != null) {
+                        VisitorDetailScreen(
+                            visitor = visitor,
+                            onBack = {
+                                focusedVisitorId = null
+                                navigate(AppDestination.ACCESS)
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) { navigate(AppDestination.ACCESS) }
+                    }
+                }
             }
         }
     }

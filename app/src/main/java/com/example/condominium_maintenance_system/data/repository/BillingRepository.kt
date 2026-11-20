@@ -49,14 +49,20 @@ class BillingRepository {
                     amount = money(it.amount),
                     method = it.method,
                     paidAt = it.paidAt,
-                    receiptNumber = it.receiptNumber
+                    receiptNumber = it.receiptNumber,
+                    billId = it.billId,
+                    unitId = unitId
                 )
             }
 
     suspend fun getManagementSnapshot(month: String): ManagementBillingSnapshot {
         val units = getBillableUnits()
         val allBills = getAllBillRows()
-        val mappedBills = toManagementBills(allBills, units.associateBy { it.id })
+        val registeredUnitIds = units.mapTo(mutableSetOf()) { it.id }
+        val mappedBills = toManagementBills(
+            allBills.filter { it.unitId in registeredUnitIds },
+            units.associateBy { it.id }
+        )
         return ManagementBillingSnapshot(
             bills = mappedBills.filter { it.billingMonth == month },
             units = units,
@@ -70,12 +76,12 @@ class BillingRepository {
     ): List<ManagementBill> =
         bills
             .map { bill ->
-                val unit = units[bill.unitId]
+                val unit = units.getValue(bill.unitId)
                 ManagementBill(
                     id = bill.id,
                     unitId = bill.unitId,
-                    unitCode = unit?.unitCode ?: bill.unitId.take(8),
-                    residentName = unit?.residentName.orEmpty(),
+                    unitCode = unit.unitCode,
+                    residentName = unit.residentName,
                     billingMonth = bill.billingMonth,
                     amount = bill.amount,
                     dueDate = bill.dueDate,
@@ -88,8 +94,9 @@ class BillingRepository {
     suspend fun getBillableUnits(): List<BillableUnit> {
         val profiles = getAllProfileRows()
             .filter { it.unitId != null }
-            .associateBy { it.unitId }
-        return getAllUnitRows()
+        val profilesByUnitId = profiles.associateBy { requireNotNull(it.unitId) }
+        val registeredUnitIds = profiles.mapNotNull { it.unitId }.toSet()
+        val allUnits = getAllUnitRows()
             .map { unit ->
                 BillableUnit(
                     id = unit.id,
@@ -97,9 +104,10 @@ class BillingRepository {
                     floor = unit.floorNumber,
                     room = unit.roomNumber,
                     unitCode = unit.unitCode,
-                    residentName = profiles[unit.id]?.fullName.orEmpty()
+                    residentName = profilesByUnitId[unit.id]?.fullName.orEmpty()
                 )
             }
+        return BillingRules.registeredUnits(allUnits, registeredUnitIds)
             .sortedWith(compareBy({ it.block }, { it.floor }, { it.room }))
     }
 
@@ -163,7 +171,7 @@ class BillingRepository {
     }
 
     suspend fun payBill(bill: MaintenanceFee, method: String): PaymentRecord {
-        require(method == "DuitNow" || method == "FPX online banking")
+        require(BillingRules.isSupportedPaymentMethod(method))
         val storedBill = client.from("condotrack_bills")
             .select { filter { eq("id", bill.id) } }
             .decodeList<BillRow>()
@@ -219,7 +227,9 @@ class BillingRepository {
             amount = money(payment.amount),
             method = payment.method,
             paidAt = payment.paidAt,
-            receiptNumber = payment.receiptNumber
+            receiptNumber = payment.receiptNumber,
+            billId = payment.billId,
+            unitId = storedBill.unitId
         )
     }
 

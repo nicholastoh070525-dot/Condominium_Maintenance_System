@@ -48,7 +48,6 @@ import com.example.condominium_maintenance_system.ui.VisitorRequest
 import com.example.condominium_maintenance_system.ui.components.CondoCard
 import com.example.condominium_maintenance_system.ui.components.Glyph
 import com.example.condominium_maintenance_system.ui.components.GlyphType
-import com.example.condominium_maintenance_system.ui.components.InfoBanner
 import com.example.condominium_maintenance_system.ui.components.PrimaryActionButton
 import com.example.condominium_maintenance_system.ui.screens.common.ScreenHeader
 import com.example.condominium_maintenance_system.ui.theme.BlueDeep
@@ -218,14 +217,6 @@ fun AddVisitorScreen(
                         singleLine = false
                     )
                 }
-            }
-            item {
-                InfoBanner(
-                    title = "What happens next?",
-                    body = "The request becomes Pending. After management approves it, the resident can open the vehicle pass.",
-                    glyph = GlyphType.CHECK,
-                    badge = "Review"
-                )
             }
             validationMessage?.let { message ->
                 item {

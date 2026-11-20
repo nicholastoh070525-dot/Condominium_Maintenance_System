@@ -17,6 +17,23 @@ class BillingRulesTest {
     )
 
     @Test
+    fun supportedPaymentMethodsIncludeRequestedBanks() {
+        assertEquals(
+            listOf(
+                "DuitNow",
+                "Maybank",
+                "RHB Bank",
+                "Hong Leong Bank",
+                "FPX online banking"
+            ),
+            BillingRules.paymentMethods.map { it.name }
+        )
+        assertTrue(BillingRules.isSupportedPaymentMethod("Maybank"))
+        assertTrue(BillingRules.isSupportedPaymentMethod("RHB Bank"))
+        assertTrue(BillingRules.isSupportedPaymentMethod("Hong Leong Bank"))
+    }
+
+    @Test
     fun floorRangeIncludesOnlyMatchingFloors() {
         val selected = BillingRules.unitsForScope(
             units,
@@ -50,6 +67,28 @@ class BillingRulesTest {
         )
 
         assertTrue(selected.isEmpty())
+    }
+
+    @Test
+    fun registeredUnitsIncludeBothBlocksAndExcludeUnregisteredUnits() {
+        val allUnits = units + BillableUnit(
+            "b21",
+            "B",
+            21,
+            1,
+            "B-21-01",
+            "Unregistered"
+        )
+
+        val registered = BillingRules.registeredUnits(
+            allUnits,
+            setOf("a11", "b20")
+        )
+
+        assertEquals(
+            listOf("A-11-01", "B-20-01"),
+            registered.map { it.unitCode }
+        )
     }
 
     @Test

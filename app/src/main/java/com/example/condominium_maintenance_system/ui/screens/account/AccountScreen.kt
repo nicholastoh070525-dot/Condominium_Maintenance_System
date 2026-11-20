@@ -125,6 +125,7 @@ fun AccountScreen(
     onOpenVisitorForm: () -> Unit,
     onReviewVisitor: (VisitorRequest, String) -> Unit,
     onOpenPass: (VisitorRequest) -> Unit,
+    onOpenVisitorDetail: (VisitorRequest) -> Unit = {},
     onClosePass: () -> Unit,
     onSignOut: () -> Unit
 ) {
@@ -245,7 +246,8 @@ fun AccountScreen(
                     ResidentVisitorCard(
                         visitor = visitor,
                         processing = processingId == visitor.id,
-                        onOpenPass = { onOpenPass(visitor) }
+                        onOpenPass = { onOpenPass(visitor) },
+                        onOpenDetail = { onOpenVisitorDetail(visitor) }
                     )
                 }
             } else {
@@ -534,11 +536,17 @@ private fun ProfileHero(profile: UserProfile?) {
 private fun ResidentVisitorCard(
     visitor: VisitorRequest,
     processing: Boolean,
-    onOpenPass: () -> Unit
+    onOpenPass: () -> Unit,
+    onOpenDetail: () -> Unit
 ) {
     val approved = visitor.status.equals("APPROVED", true)
+    val complete = visitor.status.equals("COMPLETE", true)
+    val tappable = (approved || complete) && !processing
     CondoCard(
-        modifier = Modifier.clickable(enabled = approved && !processing, onClick = onOpenPass)
+        modifier = Modifier.clickable(
+            enabled = tappable,
+            onClick = { if (approved) onOpenPass() else onOpenDetail() }
+        )
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
@@ -562,11 +570,16 @@ private fun ResidentVisitorCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                if (approved) {
-                    Text(
+                when {
+                    approved -> Text(
                         "Tap to open vehicle pass",
                         style = MaterialTheme.typography.labelSmall,
                         color = ApproveGreen
+                    )
+                    complete -> Text(
+                        "Tap to view details",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -1176,5 +1189,5 @@ private fun VehiclePassDialog(pass: VisitorRequest, onDismiss: () -> Unit) {
     )
 }
 
-private fun displayVisitTime(value: String): String =
+internal fun displayVisitTime(value: String): String =
     value.replace("T", " ").replace("+08:00", "").take(16).ifBlank { "—" }

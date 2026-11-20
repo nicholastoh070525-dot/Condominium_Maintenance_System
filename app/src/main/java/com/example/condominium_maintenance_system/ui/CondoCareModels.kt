@@ -22,12 +22,16 @@ enum class AppDestination {
     LOST_FOUND,
     ANNOUNCEMENTS,
     BILLING,
+    BILL_CHECKOUT,
+    BILL_PAYMENT_REVIEW,
+    BILL_RECEIPT,
     USER_DIRECTORY,
     PENDING_ACTIONS,
     APPROVED_OUTCOMES,
     CREATE_BILLS,
     NEW_REQUEST,
     ADD_VISITOR,
+    VISITOR_DETAIL,
     SETTINGS,
     EDIT_PROFILE
 }
@@ -249,7 +253,9 @@ data class PaymentRecord(
     val amount: String,
     val method: String,
     val paidAt: String,
-    val receiptNumber: String
+    val receiptNumber: String,
+    val billId: String,
+    val unitId: String? = null
 )
 
 data class RegistrationDraft(

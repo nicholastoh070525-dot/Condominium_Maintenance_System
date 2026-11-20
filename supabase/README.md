@@ -84,7 +84,7 @@ Create a unique constraint for `unit_id + billing_month`.
 | `bill_id` | uuid | Required and unique; references `condotrack_bills.id` |
 | `unit_id` | uuid | Required; references `condotrack_units.id` |
 | `amount` | numeric | Required |
-| `method` | text | `DuitNow` or `FPX online banking` |
+| `method` | text | `DuitNow`, `Maybank`, `RHB Bank`, `Hong Leong Bank`, or `FPX online banking` |
 | `receipt_number` | text | Required and unique |
 | `paid_at` | timestamptz | Default `now()` |
 

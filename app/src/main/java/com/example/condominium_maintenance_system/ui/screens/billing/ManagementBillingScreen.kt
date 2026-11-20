@@ -47,8 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.condominium_maintenance_system.data.model.BillingRules
 import com.example.condominium_maintenance_system.ui.BillableUnit
-import com.example.condominium_maintenance_system.ui.BillingScope
-import com.example.condominium_maintenance_system.ui.BillingScopeMode
 import com.example.condominium_maintenance_system.ui.ManagementBill
 import com.example.condominium_maintenance_system.ui.components.CondoCard
 import com.example.condominium_maintenance_system.ui.components.EmptyStateCard
@@ -350,24 +348,14 @@ fun CreateBillsScreen(
     saving: Boolean,
     onBack: () -> Unit,
     onMonthSelected: (String) -> Unit,
-    onIssue: (BillingScope, String, String) -> Unit
+    onIssue: (String, String) -> Unit
 ) {
-    var scopeMode by remember { mutableStateOf(BillingScopeMode.ALL) }
-    var block by remember { mutableStateOf("A") }
-    var startFloor by remember { mutableStateOf("") }
-    var endFloor by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var dueDateDigits by remember { mutableStateOf("") }
     var showReview by remember { mutableStateOf(false) }
     var showMonthPicker by remember { mutableStateOf(false) }
 
-    val scope = BillingScope(
-        mode = scopeMode,
-        block = block,
-        startFloor = startFloor.toIntOrNull(),
-        endFloor = endFloor.toIntOrNull()
-    )
-    val selectedUnits = BillingRules.unitsForScope(units, scope)
+    val selectedUnits = units
     val existingUnitIds = existingBills.mapTo(mutableSetOf()) { it.unitId }
     val newUnits = selectedUnits.filterNot { it.id in existingUnitIds }
     val skipped = selectedUnits.size - newUnits.size
@@ -427,68 +415,10 @@ fun CreateBillsScreen(
                 Text("Prepare $monthLabel fees", style = MaterialTheme.typography.headlineLarge)
                 Spacer(Modifier.height(5.dp))
                 Text(
-                    "Choose the units, enter the amount and due date, then review before issuing.",
+                    "Bills are sent to all registered units across Block A and Block B. Enter the amount and due date, then review before issuing.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-            item {
-                Text("Send to", style = MaterialTheme.typography.labelLarge)
-                Spacer(Modifier.height(7.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = scopeMode == BillingScopeMode.ALL,
-                        onClick = { scopeMode = BillingScopeMode.ALL },
-                        label = { Text("All units") }
-                    )
-                    FilterChip(
-                        selected = scopeMode == BillingScopeMode.BLOCK,
-                        onClick = { scopeMode = BillingScopeMode.BLOCK },
-                        label = { Text("Block") }
-                    )
-                    FilterChip(
-                        selected = scopeMode == BillingScopeMode.FLOOR_RANGE,
-                        onClick = { scopeMode = BillingScopeMode.FLOOR_RANGE },
-                        label = { Text("Floor") }
-                    )
-                }
-                if (scopeMode == BillingScopeMode.BLOCK ||
-                    scopeMode == BillingScopeMode.FLOOR_RANGE
-                ) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf("A", "B").forEach { option ->
-                            FilterChip(
-                                selected = block == option,
-                                onClick = { block = option },
-                                label = { Text("Block $option") }
-                            )
-                        }
-                    }
-                }
-                if (scopeMode == BillingScopeMode.FLOOR_RANGE) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        OutlinedTextField(
-                            value = startFloor,
-                            onValueChange = { startFloor = it.filter(Char::isDigit).take(2) },
-                            label = { Text("Start floor") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                        OutlinedTextField(
-                            value = endFloor,
-                            onValueChange = { endFloor = it.filter(Char::isDigit).take(2) },
-                            label = { Text("End floor") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-                }
             }
             item {
                 OutlinedTextField(
@@ -569,7 +499,7 @@ fun CreateBillsScreen(
                     enabled = !saving,
                     onClick = {
                         showReview = false
-                        onIssue(scope, amount, BillingRules.formatDueDateInput(dueDateDigits))
+                        onIssue(amount, BillingRules.formatDueDateInput(dueDateDigits))
                     }
                 ) {
                     Text(if (saving) "Issuing…" else "Issue bills")

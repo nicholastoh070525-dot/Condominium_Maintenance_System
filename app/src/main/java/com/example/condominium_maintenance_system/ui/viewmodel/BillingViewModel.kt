@@ -17,6 +17,7 @@ data class BillingUiState(
     val payments: List<PaymentRecord> = emptyList(),
     val loading: Boolean = false,
     val paying: Boolean = false,
+    val lastPayment: PaymentRecord? = null,
     val error: String? = null,
     val message: String? = null
 ) {
@@ -46,7 +47,12 @@ class BillingViewModel(
         }
     }
 
-    fun pay(bill: MaintenanceFee, unitId: String, method: String) {
+    fun pay(
+        bill: MaintenanceFee,
+        unitId: String,
+        method: String,
+        onSuccess: (PaymentRecord) -> Unit = {}
+    ) {
         viewModelScope.launch {
             _state.update { it.copy(paying = true, error = null) }
             runCatching { repository.payBill(bill, method) }
@@ -55,9 +61,11 @@ class BillingViewModel(
                         it.copy(
                             paying = false,
                             payments = listOf(payment) + it.payments,
+                            lastPayment = payment,
                             message = "$method payment completed. Receipt ${payment.receiptNumber}."
                         )
                     }
+                    onSuccess(payment)
                     load(unitId)
                 }
                 .onFailure { error ->
